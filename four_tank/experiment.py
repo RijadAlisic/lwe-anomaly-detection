@@ -2,16 +2,19 @@
 
     log = run(plant="linear" | "fourtank", mode="nominal" | "quantized", scenario=None)
 
-Modes (more to come: "detected"):
+Modes:
     nominal    floating point controller (step 1)
     quantized  integer controller on quantized signals (step 2)
     encrypted  the integer controller evaluated on LWE ciphertexts (step 3); the log also holds the encrypted
                values enc_y, enc_u, enc_rho (second ciphertext component, centered mod q), q and dec_errors
+    detected   the encrypted run plus the detector's per-window flags and times (step 4, see detect.py)
+    detected   the encrypted run plus the detector's alarm flag and compute time per window (step 4)
 The attack is defined in physical units once, so every mode sees exactly the same attack.
 The storyline is fixed: calm start, a sensor attack in the second quarter of the run, recovery, then an
 actuator attack in the last quarter (fixed random seed, so the gifs of all modes show the same attack).
 The log has the same keys for every mode: t, y, u, rho (residual in output units) and the attack windows.
 """
+import os
 from dataclasses import dataclass
 import numpy as np
 from systems import LinearPaper, FourTank, simulate
@@ -19,7 +22,7 @@ from quantized import QuantizedLinear, QuantizedFourTank, PAPER, AERO2, run as r
 from encrypted import run as run_encrypted
 
 PLANTS = {"linear": LinearPaper, "fourtank": FourTank}
-MODES = ("nominal", "quantized", "encrypted")
+MODES = ("nominal", "quantized", "encrypted", "detected")
 LWE_SEED = {"linear": 4, "fourtank": 1}   # with the PAPER preset the linear plant decrypts wrongly in a few steps of most
                                            # runs; seed 4 has none (see README).  AERO2 has none for any seed.
 
@@ -60,6 +63,15 @@ def default_scenario(plant):
 
 
 def run(plant, mode, scenario=None, keep_ciphertexts=False, lwe="aero2"):
+    if mode == "detected":      # the encrypted run plus the detector's flags (computed by detect.py, one npz per plant)
+        import os
+        path = os.path.join(os.path.dirname(__file__), "det_results", f"{plant}_aero2.npz")
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"{path} is missing: run  python detect.py {plant}  (needs fpylll or blaster)")
+        log = run(plant, "encrypted", scenario, lwe="aero2")
+        d = np.load(path)
+        log.update(mode="detected", det={k: d[k] for k in d.files})
+        return log
     sc = scenario or default_scenario(plant)
     sens, act = sc.draws()
     if mode == "nominal":
@@ -89,6 +101,16 @@ def run(plant, mode, scenario=None, keep_ciphertexts=False, lwe="aero2"):
         extra["lwe"] = spec.lwe
         if keep_ciphertexts:
             extra["res_ct"] = out["res_ct"]
+    elif mode == "detected":                       # encrypted run + the detector's flags (run detect.py first)
+        base = run(plant, "encrypted", sc, lwe="aero2")
+        path = os.path.join(os.path.dirname(__file__), "det_results", f"{plant}_aero2.npz")
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"{path} missing: run  python detect.py {plant}  (needs fpylll/blaster)")
+        D = np.load(path)
+        base["mode"] = "detected"
+        base.update(det_flags=D["flag_chi"], det_seconds=D["seconds"], det_T=int(D["T"]), det_alpha=float(D["alpha"]),
+                    det_K=int(D["K"]))
+        return base
     else:
         raise ValueError(f"unknown mode {mode!r}; available: {MODES}")
     Ts = PLANTS[plant].Ts

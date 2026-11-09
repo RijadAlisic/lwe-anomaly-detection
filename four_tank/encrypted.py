@@ -80,3 +80,21 @@ def run(spec, n_steps, sensor_attack=None, actuator_attack=None, seed=1, keep_ci
     out["error_steps"] = error_steps
     out["dec_errors"] = dec_errors                                   # steps where noise broke the decryption
     return out
+
+
+def noise_map(spec, n):
+    """Matrix T (n x n) with e_rho = T e_y: how the sensors' encryption noises reach the residual noise of one
+    window (this is T_c^T of the paper).  Sigma_rho = sigma^2 T T^T."""
+    A, B, Co, Do = (np.array(spec.M[k], dtype=float) for k in ("A", "B", "Co", "Do"))
+    c, kp = spec.c, spec.kp
+    T = np.zeros((n, n))
+    for j in range(n):
+        x = np.zeros((A.shape[0], 1))
+        for k in range(n):
+            kb = k % kp
+            if kb == 0:
+                x = np.zeros_like(x)
+            e = 1.0 if k == j else 0.0
+            T[k, j] = c ** (kb + 1) * e - (Co @ x)[0, 0] - Do[0, 0] * c ** kb * e
+            x = A @ x + B * (c ** kb * e)
+    return T
