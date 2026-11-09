@@ -7,11 +7,11 @@ Modes:
     quantized  integer controller on quantized signals (step 2)
     encrypted  the integer controller evaluated on LWE ciphertexts (step 3); the log also holds the encrypted
                values enc_y, enc_u, enc_rho (second ciphertext component, centered mod q), q and dec_errors
-    detected   the encrypted run plus the detector's per-window flags and times (step 4, see detect.py)
-    detected   the encrypted run plus the detector's alarm flag and compute time per window (step 4)
+    detected   the encrypted run plus the detector's flag, statistic and measured compute time per window (step 4,
+               see detect.py); replay.py turns the measured times into a parallel plant/detector timeline
 The attack is defined in physical units once, so every mode sees exactly the same attack.
-The storyline is fixed: calm start, a sensor attack in the second quarter of the run, recovery, then an
-actuator attack in the last quarter (fixed random seed, so the gifs of all modes show the same attack).
+The storyline is fixed: calm start, a sensor attack in the second quarter of the first n_attack samples, recovery,
+an actuator attack in the last quarter of them, then a few calm windows (n > n_attack) (fixed random seed, so the gifs of all modes show the same attack).
 The log has the same keys for every mode: t, y, u, rho (residual in output units) and the attack windows.
 """
 import os
@@ -37,14 +37,17 @@ class Scenario:
     a_a: int
     seed: int = 0
     offset_h2: float = 0.0    # four-tank initial offset of h2 [cm]
+    n_attack: int = None      # the attack windows are placed within the first n_attack samples (default n)
 
     @property
     def sensor_window(self):
-        return self.n // 4 + 1, self.n // 2
+        m = self.n_attack or self.n
+        return m // 4 + 1, m // 2
 
     @property
     def actuator_window(self):
-        return 3 * self.n // 4 + 1, self.n
+        m = self.n_attack or self.n
+        return 3 * m // 4 + 1, m
 
     def draws(self):
         """Integer draws of the two attacks (identical for every mode)."""
@@ -57,9 +60,10 @@ class Scenario:
 
 
 def default_scenario(plant):
-    if plant == "linear":   # the paper: 32 key epochs of 192 steps, attacks of +-5 quantization steps
-        return Scenario("linear", 6144, 1 / 5.0, 5, 1 / 5.0, 5)
-    return Scenario("fourtank", 1536, 1 / 5.0, 5, 1 / 10.0, 10, offset_h2=1.0)   # +-1 cm sensor, +-1 V actuator
+    # 32 key epochs of 192 steps as in the paper, attacks of +-5 quantization steps, then 4 calm epochs
+    if plant == "linear":
+        return Scenario("linear", 36 * 192, 1 / 5.0, 5, 1 / 5.0, 5, n_attack=32 * 192)
+    return Scenario("fourtank", 36 * 192, 1 / 5.0, 5, 1 / 10.0, 10, offset_h2=1.0, n_attack=32 * 192)  # +-1 cm, +-1 V
 
 
 def run(plant, mode, scenario=None, keep_ciphertexts=False, lwe="aero2"):
@@ -101,16 +105,6 @@ def run(plant, mode, scenario=None, keep_ciphertexts=False, lwe="aero2"):
         extra["lwe"] = spec.lwe
         if keep_ciphertexts:
             extra["res_ct"] = out["res_ct"]
-    elif mode == "detected":                       # encrypted run + the detector's flags (run detect.py first)
-        base = run(plant, "encrypted", sc, lwe="aero2")
-        path = os.path.join(os.path.dirname(__file__), "det_results", f"{plant}_aero2.npz")
-        if not os.path.exists(path):
-            raise FileNotFoundError(f"{path} missing: run  python detect.py {plant}  (needs fpylll/blaster)")
-        D = np.load(path)
-        base["mode"] = "detected"
-        base.update(det_flags=D["flag_chi"], det_seconds=D["seconds"], det_T=int(D["T"]), det_alpha=float(D["alpha"]),
-                    det_K=int(D["K"]))
-        return base
     else:
         raise ValueError(f"unknown mode {mode!r}; available: {MODES}")
     Ts = PLANTS[plant].Ts

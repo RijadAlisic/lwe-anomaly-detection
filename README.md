@@ -28,7 +28,7 @@ nonlinear four-tank process of the KTH lab.
 | 1 | `step1_feedback_attacks.py` | plants in closed loop with sensor and actuator attack injections (floating point) |
 | 2 | `step2_quantization.py` | quantized signals and the integer controller of eq. (23); the linear plant reproduces the paper's saved run exactly |
 | 3 | `encrypted.py` | encrypted control; the log adds the encrypted measurement, input and residual |
-| 4 | `detect.py` | anomaly detection with the Aero2 parameters: per window of 192 residual ciphertexts, kernel lattice, LLL (blaster), 6-vector chi-square test; about 11 s per window in Python on one core. Run with the research venv (needs `blaster`/`fpylll`); results are stored in `det_results/<plant>_aero2.npz` and drawn by `make_gifs.py` as `*_4_detected.gif` (the flags fill in after the signals) |
+| 4 | `detect.py` | anomaly detection with the Aero2 parameters: per window of 192 residual ciphertexts, kernel lattice, LLL (blaster), 6-vector chi-square test; about 2 s per window in Python on one core (measured, see `det_results`). Run with the research venv (needs `blaster`/`fpylll`); results are stored in `det_results/<plant>_aero2.npz` and drawn by `make_gifs.py` as `*_4_detected.gif` (the flags fill in after the signals) |
 
 ### Encrypted control: parameter sets and decryption failures
 

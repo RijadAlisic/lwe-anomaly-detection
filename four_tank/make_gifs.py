@@ -11,6 +11,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, PillowWriter
 import experiment as ex
+import replay
 
 TITLES = {"linear": "Linear plant of the paper", "fourtank": "Nonlinear four-tank process"}
 MODE_LABEL = {"nominal": "nominal control (floating point)", "quantized": "quantized control (integer controller)",
@@ -33,7 +34,7 @@ def shared_limits(plant):
     return lim
 
 
-def make_gif(plant, mode, number, lim, frames, outdir, seconds=10.0):
+def make_gif(plant, mode, number, lim, frames, outdir, seconds=10.0, workers=1, time_scale=1.0):
     L = ex.run(plant, mode)
     t, Ts = L["t"], L["Ts"]
     detected = mode == "detected"
@@ -77,7 +78,7 @@ def make_gif(plant, mode, number, lim, frames, outdir, seconds=10.0):
         sax.set_xlabel(TIME[plant]); sax.tick_params(axis="x", labelbottom=True)
         sax.text(1.01, 0.72, "alarm", transform=sax.transAxes, color="#d55e00", fontsize=8, va="center")
         sax.text(1.01, 0.28, "no alarm", transform=sax.transAxes, color="#009e73", fontsize=8, va="center")
-        sax.text(1.01, 0.5, "", transform=sax.transAxes)
+        sax.text(1.01, 0.5, "computing", transform=sax.transAxes, color="#a08c00", fontsize=8, va="center")
     else:
         axes[2].set_xlabel(TIME[plant])
     if encrypted:                                       # what one sample costs, for this parameter set
@@ -86,23 +87,37 @@ def make_gif(plant, mode, number, lim, frames, outdir, seconds=10.0):
                  f"control {tm['evaluate']:.2f} ms, decrypt {tm['decrypt']:.2f} ms", fontsize=6, color="#555555")
     if detected:
         fig.text(0.13, 0.038, f"detection per window of {int(d['T'])} samples (kernel lattice + LLL, Python, 1 core): "
-                 f"{np.mean(d['seconds']):.0f} s on average, {int(d['K'])}-vector chi-square test at alpha = {float(d['alpha']):g}",
+                 f"{np.mean(d['seconds']):.0f} s on average, {int(d['K'])}-vector chi-square test at alpha = {float(d['alpha']):g}; "
+                 f"plant and {workers} detector worker(s) in parallel, newest window first",
                  fontsize=6, color="#555555")
     fig.subplots_adjust(left=0.13, right=0.86, top=0.93, bottom=0.17 if detected else 0.13, hspace=0.12)
     idx = np.unique(np.linspace(1, len(t), frames).astype(int))
-    seq = [("draw", int(i)) for i in idx]
-    if detected:     # after the signals are drawn, the detection flags fill in window by window
-        per = max(1, int(round(30 / nw)))
-        seq += [("det", w) for w in range(nw) for _ in range(per)] + [("det", nw - 1)] * 15
+    if detected:
+        # one common simulation clock: the plant runs at the sample rate, window w is available when its last
+        # sample has arrived, the detector workers start and finish at the times given by replay.schedule
+        Tn = int(d["T"]); t_run = len(t) * Ts
+        sch = replay.schedule((np.arange(nw) + 1) * Tn * Ts, d["seconds"], t_run, workers, time_scale)
+        dt = t_run / len(idx)
+        taus = np.arange(1, int(np.ceil(max(t_run, sch["finish"].max()) / dt)) + 1) * dt
+        seq = [float(x) for x in taus] + [float(taus[-1])] * 15
+    else:
+        seq = [int(i) for i in idx]
 
     def draw(f):
-        kind, i = f
-        if kind == "draw":
-            n = i
+        if detected:
+            n = max(1, min(len(t), int(f / Ts)))
+            for w in range(nw):
+                if f >= sch["finish"][w]:
+                    c = "#d55e00" if d["flag_chi"][w] else "#009e73"
+                elif f >= sch["start"][w]:
+                    c = "#f0e442"
+                elif f >= sch["avail"][w]:
+                    c = "#c8c8c8"
+                else:
+                    c = "#ececec"
+                patches[w].set_facecolor(c)
         else:
-            n = len(t)
-            for w in range(i + 1):
-                patches[w].set_facecolor("#d55e00" if d["flag_chi"][w] else "#009e73")
+            n = f
         for ln, dot, key in lines:
             ln.set_data(t[:n], L[key][:n]); dot.set_data([t[n - 1]], [L[key][n - 1]])
         for eln, ek in enc_lines:
@@ -112,6 +127,10 @@ def make_gif(plant, mode, number, lim, frames, outdir, seconds=10.0):
     anim = FuncAnimation(fig, draw, frames=seq, blit=not detected)
     path = os.path.join(outdir, f"{plant}_{number}_{mode}.gif")
     anim.save(path, writer=PillowWriter(fps=len(idx) / seconds))
+    if detected:
+        lat = sch["finish"] - sch["avail"]
+        print(f"  detector latency after the window closes: mean {lat.mean():.1f} s, max {lat.max():.1f} s (simulation seconds); "
+              f"last flag at {sch['finish'].max():.0f} s, run ends at {t_run:.0f} s")
     plt.close(fig)
     return path
 
@@ -119,10 +138,16 @@ def make_gif(plant, mode, number, lim, frames, outdir, seconds=10.0):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(); ap.add_argument("--frames", type=int, default=100)
     ap.add_argument("--seconds", type=float, default=10.0, help="duration of each gif")
+    ap.add_argument("--workers", type=int, default=1, help="detector workers running beside the plant")
+    ap.add_argument("--time-scale", type=float, default=1.0,
+                    help="simulation seconds per measured detector second (1 = as measured)")
+    ap.add_argument("--only", default=None, help="render only this mode (e.g. detected)")
     a = ap.parse_args()
     os.makedirs("gifs", exist_ok=True)
     for plant in ("linear", "fourtank"):
         lim = shared_limits(plant)
         for number, mode in enumerate(ex.MODES, start=1):
-            p = make_gif(plant, mode, number, lim, a.frames, "gifs", a.seconds)
+            if a.only and mode != a.only:
+                continue
+            p = make_gif(plant, mode, number, lim, a.frames, "gifs", a.seconds, a.workers, a.time_scale)
             print(p, f"{os.path.getsize(p) / 1e3:.0f} kB")

@@ -77,7 +77,9 @@ def main(plant):
     np.savez(f"det_results/{plant}_aero2.npz", window=np.arange(nw), attacked=[x[1] for x in rows],
              rho_nonzero=[x[2] for x in rows], flag_chi=[x[3]["flag_chi"] for x in rows],
              flag_single=[x[3]["flag_single"] for x in rows], Z=[x[3]["Z"] for x in rows],
-             seconds=[x[3]["seconds"] for x in rows], T=T, K=K, alpha=ALPHA)
+             seconds=[x[3]["seconds"] for x in rows], T=T, K=K, alpha=ALPHA, Ts=log["Ts"], n=len(res),
+             z1=[x[3]["z1"] for x in rows], sensor_window=sc.sensor_window, actuator_window=sc.actuator_window,
+             machine="1 core, sequential; seconds = measured compute time per window")
     calm = [x for x in rows if not x[1]]
     att = [x for x in rows if x[1]]
     print(f"\ncalm windows with an alarm: {sum(x[3]['flag_chi'] for x in calm)}/{len(calm)}   "
