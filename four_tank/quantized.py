@@ -36,8 +36,10 @@ class QuantizedFourTank:
         self.M = {k: v.tolist() for k, v in M.items()}
         self.cs, self.cu, self.c, self.kp = loop.CY, loop.CU, loop.C_SCALE, loop.KP
 
+    offset_h2 = 0.0
+
     def make_plant(self):
-        return FourTank(offset_h2=0.0)
+        return FourTank(offset_h2=self.offset_h2)
 
 
 def run(spec, n_steps, sensor_attack=None, actuator_attack=None):

@@ -30,6 +30,13 @@ nonlinear four-tank process of the KTH lab.
 | 3 | (next) | encrypted control |
 | 4 | (next) | anomaly detection (`run_demo.py` is a first version for the four-tank) |
 
+### Animated plots
+
+`python make_gifs.py` writes one gif per controller version and plant to `four_tank/gifs/`, in the order
+nominal, quantized (encrypted and detected follow with steps 3 and 4). All gifs share the layout, the axis limits
+and a fixed attack storyline (`experiment.py`): calm start, sensor attack in the second quarter, recovery, actuator
+attack in the last quarter, fixed random seed. `experiment.run(plant, mode)` is the single entry point.
+
 ## `four_tank/`: what is implemented
 
 * **Plant**: the minimum-phase four-tank process of the KTH water-tank lab (parameters and equations from the
