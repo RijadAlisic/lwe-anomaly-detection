@@ -1,7 +1,7 @@
 """Animated plots, one gif per controller version, in the order nominal -> quantized -> (encrypted -> detected).
 
 Every gif has the same layout and the same attack storyline (same scenario, same axis limits per plant), so
-consecutive gifs can be compared by flipping through them.  Usage:  python make_gifs.py [--frames 100]
+consecutive gifs can be compared by flipping through them.  Usage:  python make_gifs.py [--frames 100] [--seconds 10]
 Writes gifs/<plant>_<number>_<mode>.gif
 """
 import argparse, os
@@ -30,7 +30,7 @@ def shared_limits(plant):
     return lim
 
 
-def make_gif(plant, mode, number, lim, frames, outdir):
+def make_gif(plant, mode, number, lim, frames, outdir, seconds=10.0):
     L = ex.run(plant, mode)
     t, Ts = L["t"], L["Ts"]
     fig, axes = plt.subplots(3, 1, figsize=(6.4, 5.4), sharex=True)
@@ -58,17 +58,18 @@ def make_gif(plant, mode, number, lim, frames, outdir):
 
     anim = FuncAnimation(fig, draw, frames=idx, blit=True)
     path = os.path.join(outdir, f"{plant}_{number}_{mode}.gif")
-    anim.save(path, writer=PillowWriter(fps=15))
+    anim.save(path, writer=PillowWriter(fps=len(idx) / seconds))
     plt.close(fig)
     return path
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(); ap.add_argument("--frames", type=int, default=100)
+    ap.add_argument("--seconds", type=float, default=10.0, help="duration of each gif")
     a = ap.parse_args()
     os.makedirs("gifs", exist_ok=True)
     for plant in ("linear", "fourtank"):
         lim = shared_limits(plant)
         for number, mode in enumerate(ex.MODES, start=1):
-            p = make_gif(plant, mode, number, lim, a.frames, "gifs")
+            p = make_gif(plant, mode, number, lim, a.frames, "gifs", a.seconds)
             print(p, f"{os.path.getsize(p) / 1e3:.0f} kB")
