@@ -1,6 +1,6 @@
 """Step 1: both plants in closed loop, nominal and under sensor / actuator attack injections (no quantization,
 no encryption).  The attack windows follow the paper: sensor attack in the second quarter of the run and
-actuator attack in the last quarter, each a random integer in [-5, 5] times a unit.
+actuator attack in the last quarter, each a random integer in [-5, 5] times a unit (four-tank actuator: 0.2 V).
 Run:  python step1_feedback_attacks.py      writes step1_feedback_attacks.pdf / .png
 """
 import numpy as np
@@ -11,7 +11,7 @@ from systems import LinearPaper, FourTank, simulate
 
 CASES = [  # plant class, controller kwargs, steps, sensor unit, actuator unit
     (LinearPaper, dict(), 6144, 1 / 5.0, 1 / 5.0),      # unit = 1/cs: one quantization step
-    (FourTank, dict(), 1024, 0.2, 0.05),                           # cm and V
+    (FourTank, dict(), 1024, 0.2, 0.2),                            # cm and V
 ]
 
 
