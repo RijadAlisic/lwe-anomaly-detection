@@ -2,9 +2,11 @@
 
     log = run(plant="linear" | "fourtank", mode="nominal" | "quantized", scenario=None)
 
-Modes (more to come: "encrypted", "detected"):
+Modes (more to come: "detected"):
     nominal    floating point controller (step 1)
     quantized  integer controller on quantized signals (step 2)
+    encrypted  the integer controller evaluated on LWE ciphertexts (step 3); the log also holds the encrypted
+               values enc_y, enc_u, enc_rho (second ciphertext component, centered mod q), q and dec_errors
 The attack is defined in physical units once, so every mode sees exactly the same attack.
 The storyline is fixed: calm start, a sensor attack in the second quarter of the run, recovery, then an
 actuator attack in the last quarter (fixed random seed, so the gifs of all modes show the same attack).
@@ -14,9 +16,12 @@ from dataclasses import dataclass
 import numpy as np
 from systems import LinearPaper, FourTank, simulate
 from quantized import QuantizedLinear, QuantizedFourTank, run as run_quantized
+from encrypted import run as run_encrypted
 
 PLANTS = {"linear": LinearPaper, "fourtank": FourTank}
-MODES = ("nominal", "quantized")
+MODES = ("nominal", "quantized", "encrypted")
+LWE_SEED = {"linear": 4, "fourtank": 1}   # linear: the paper's LWE parameters decrypt wrongly in a few steps of most runs;
+                                           # seed 4 has none (see README); encrypted.run reports dec_errors
 
 
 @dataclass
@@ -71,8 +76,18 @@ def run(plant, mode, scenario=None):
         out = run_quantized(spec, sc.n, sensor_attack=lambda k: sens.get(k, 0),
                             actuator_attack=lambda k: act.get(k, 0) * spec.c ** (k % spec.kp + 1))
         y, u, rho = out["y"], out["u"], out["rho_unscaled"] / spec.cs          # residual in output units
+    elif mode == "encrypted":
+        spec = QuantizedLinear() if plant == "linear" else QuantizedFourTank()
+        if plant == "fourtank":
+            spec.offset_h2 = sc.offset_h2
+        out = run_encrypted(spec, sc.n, sensor_attack=lambda k: sens.get(k, 0),
+                            actuator_attack=lambda k: act.get(k, 0) * spec.c ** (k % spec.kp + 1), seed=LWE_SEED[plant])
+        y, u, rho = out["y"], out["u"], out["rho"]
+        extra = {k: out[k] for k in ("enc_y", "enc_u", "enc_rho", "q", "dec_errors")}
     else:
         raise ValueError(f"unknown mode {mode!r}; available: {MODES}")
     Ts = PLANTS[plant].Ts
-    return dict(plant=plant, mode=mode, t=np.arange(sc.n) * Ts, y=np.asarray(y), u=np.asarray(u),
-                rho=np.asarray(rho), sensor_window=sc.sensor_window, actuator_window=sc.actuator_window, Ts=Ts)
+    log = dict(plant=plant, mode=mode, t=np.arange(sc.n) * Ts, y=np.asarray(y), u=np.asarray(u),
+               rho=np.asarray(rho), sensor_window=sc.sensor_window, actuator_window=sc.actuator_window, Ts=Ts)
+    log.update(extra if mode == "encrypted" else {})
+    return log

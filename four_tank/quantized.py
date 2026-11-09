@@ -20,6 +20,7 @@ class QuantizedLinear:
     cs, cu, c, kp = 5.0, 5.0, 1, 64
     M = dict(A=[[0, 0], [1, 0]], B=[[1], [-1]], C=[[-1, 1]], D=[[0]], Co=[[1, 0]], Do=[[0]])
     Ts = LinearPaper.Ts
+    lwe = dict(v=64, q=16381, r=400, sigma=26.0, T=192)      # the paper's parameters (key refresh every T steps)
 
     def make_plant(self):
         return LinearPaper()
@@ -35,6 +36,8 @@ class QuantizedFourTank:
         _, _, _, M = loop.design()
         self.M = {k: v.tolist() for k, v in M.items()}
         self.cs, self.cu, self.c, self.kp = loop.CY, loop.CU, loop.C_SCALE, loop.KP
+        # toy LWE parameters (NOT secure): large q so that the scale growth c^kbar fits; T is a multiple of kp
+        self.lwe = dict(v=loop.V, q=loop.Q_MOD, r=loop.R_SCALE, sigma=loop.SIGMA, T=33)
 
     offset_h2 = 0.0
 

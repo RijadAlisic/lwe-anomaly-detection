@@ -27,8 +27,18 @@ nonlinear four-tank process of the KTH lab.
 |---|---|---|
 | 1 | `step1_feedback_attacks.py` | plants in closed loop with sensor and actuator attack injections (floating point) |
 | 2 | `step2_quantization.py` | quantized signals and the integer controller of eq. (23); the linear plant reproduces the paper's saved run exactly |
-| 3 | (next) | encrypted control |
+| 3 | `encrypted.py` | encrypted control; the log adds the encrypted measurement, input and residual |
 | 4 | (next) | anomaly detection (`run_demo.py` is a first version for the four-tank) |
+
+### Encrypted control: parameters and decryption failures
+
+`mode="encrypted"` evaluates the integer controller on LWE ciphertexts and also logs the encrypted values (second
+ciphertext component) of the measurement, the input and the residual, drawn as a gray background in the gif, as in
+Fig. 7 of the paper. The linear plant uses the paper's parameters (`v = 64, q = 16381, r = 400, sigma = 26`, key
+refresh every 192 steps). With these parameters the noise reaching the controller input is `e_(k-2) - 2 e_(k-1)`
+(standard deviation about 2.2 sigma = 58, against the limit r/2 = 200), so **decryption fails in a few steps of most
+6144-step runs** (0 to 5 per run over 8 seeds, mean about 2.4). `encrypted.run` counts them (`dec_errors`); the
+default seed of the linear gif is one with none. The four-tank uses toy parameters (see below) and had none.
 
 ### Animated plots
 

@@ -13,7 +13,9 @@ from matplotlib.animation import FuncAnimation, PillowWriter
 import experiment as ex
 
 TITLES = {"linear": "Linear plant of the paper", "fourtank": "Nonlinear four-tank process"}
-MODE_LABEL = {"nominal": "nominal control (floating point)", "quantized": "quantized control (integer controller)"}
+MODE_LABEL = {"nominal": "nominal control (floating point)", "quantized": "quantized control (integer controller)",
+              "encrypted": "encrypted control (LWE ciphertexts)"}
+ENC_KEY = {"y": "enc_y", "u": "enc_u", "rho": "enc_rho"}
 ROWS = (("y", "output y"), ("u", "applied input u"), ("rho", "residual"))
 UNITS = {"linear": ("", "", ""), "fourtank": (" [cm]", " [V]", " [cm]")}
 TIME = {"linear": "time [s]", "fourtank": "time [s]"}
@@ -34,27 +36,41 @@ def make_gif(plant, mode, number, lim, frames, outdir, seconds=10.0):
     L = ex.run(plant, mode)
     t, Ts = L["t"], L["Ts"]
     fig, axes = plt.subplots(3, 1, figsize=(6.4, 5.4), sharex=True)
-    lines = []
+    lines, enc_lines = [], []
+    encrypted = "enc_y" in L
     for ax, (key, lab), unit in zip(axes, ROWS, UNITS[plant]):
         ax.axvspan(L["sensor_window"][0] * Ts, L["sensor_window"][1] * Ts, color="#e69f00", alpha=0.15, lw=0)
         ax.axvspan(L["actuator_window"][0] * Ts, L["actuator_window"][1] * Ts, color="#d55e00", alpha=0.15, lw=0)
-        (ln,) = ax.plot([], [], color="#0072b2", lw=0.8)
-        (dot,) = ax.plot([], [], "o", color="#0072b2", ms=3.5)
-        ax.set_xlim(t[0], t[-1] + Ts); ax.set_ylim(*lim[key]); ax.set_ylabel(lab + unit); ax.grid(alpha=0.3)
+        ax.set_xlim(t[0], t[-1] + Ts); ax.grid(alpha=0.3)
+        pax = ax
+        if encrypted:                                   # encrypted values as a gray background (left), plaintext on top (right)
+            half = L["q"] / 2
+            (eln,) = ax.plot([], [], color="#8c8c8c", lw=0.5, alpha=0.4)
+            ax.set_ylim(-half, half); ax.set_yticks([]); ax.set_ylabel("encrypted", color="#8c8c8c", fontsize=8)
+            enc_lines.append((eln, ENC_KEY[key]))
+            pax = ax.twinx(); pax.set_zorder(ax.get_zorder() + 1); pax.patch.set_visible(False)
+        (ln,) = pax.plot([], [], color="#0072b2", lw=0.8)
+        (dot,) = pax.plot([], [], "o", color="#0072b2", ms=3.5)
+        pax.set_ylim(*lim[key]); pax.set_ylabel(lab + unit)
+        if encrypted:
+            pax.yaxis.set_label_position("right")
         lines.append((ln, dot, key))
     fig.suptitle(f"{TITLES[plant]}: {MODE_LABEL[mode]}", fontsize=10, weight="bold", x=0.02, ha="left")
-    axes[0].text(0.5 * (L["sensor_window"][0] + L["sensor_window"][1]) * Ts, lim["y"][1], "sensor attack", ha="center",
-                 va="top", fontsize=7, color="#a06a00")
-    axes[0].text(0.5 * (L["actuator_window"][0] + L["actuator_window"][1]) * Ts, lim["y"][1], "actuator attack", ha="center",
-                 va="top", fontsize=7, color="#a03a00")
+    tr = axes[0].get_xaxis_transform()                  # x in data, y as fraction of the axis height
+    axes[0].text(0.5 * (L["sensor_window"][0] + L["sensor_window"][1]) * Ts, 0.97, "sensor attack", ha="center",
+                 va="top", fontsize=7, color="#a06a00", transform=tr, zorder=10)
+    axes[0].text(0.5 * (L["actuator_window"][0] + L["actuator_window"][1]) * Ts, 0.97, "actuator attack", ha="center",
+                 va="top", fontsize=7, color="#a03a00", transform=tr, zorder=10)
     axes[2].set_xlabel(TIME[plant])
-    fig.subplots_adjust(left=0.13, right=0.975, top=0.93, bottom=0.09, hspace=0.12)   # identical plot area in every gif
+    fig.subplots_adjust(left=0.13, right=0.86, top=0.93, bottom=0.09, hspace=0.12)   # identical plot area in every gif
     idx = np.unique(np.linspace(1, len(t), frames).astype(int))
 
     def draw(i):
         for ln, dot, key in lines:
             ln.set_data(t[:i], L[key][:i]); dot.set_data([t[i - 1]], [L[key][i - 1]])
-        return [x for ln, dot, _ in lines for x in (ln, dot)]
+        for eln, ek in enc_lines:
+            eln.set_data(t[:i], L[ek][:i])
+        return [x for ln, dot, _ in lines for x in (ln, dot)] + [eln for eln, _ in enc_lines]
 
     anim = FuncAnimation(fig, draw, frames=idx, blit=True)
     path = os.path.join(outdir, f"{plant}_{number}_{mode}.gif")
