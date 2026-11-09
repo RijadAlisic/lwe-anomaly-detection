@@ -14,7 +14,7 @@ for (kind, scen, xi, g), rs in sorted(G.items(), key=lambda kv: (kv[0][0], kv[0]
     print(f"{kind:8s} {xi:4.2f} {('none' if g is None else f'{g:4.2f}'):>5s} | {a[0][0]}/{a[0][1]}            | {a[1][0]}/{a[1][1]}  | {a[2][0]}/{a[2][1]}  | "
           f"{int(np.median([r['wins'][0]['nz'] for r in rs])):6d}  | {np.median([r['wins'][0]['Z'] for r in rs]):12.1f}  | "
           f"{np.median([r['wins'][0]['max_x2'] for r in rs]):10.2f}  ")
-print("\nB: attack from rest at step 192, ZD sequence of amplitude eps, 192 steps; windows 1-2 attacked, 3 aftermath")
+print("\nB: attack from rest at step 192, ZD sequence of amplitude eps, 192 steps; window 1 attacked, 2 aftermath, 3 later")
 print("kind      eps   | win0 (calm) | win1 | win2 | win3 | median nz win1 | max|y| win1-2 | max|x2| win1-2")
 for (kind, scen, xi, e), rs in sorted(G.items(), key=lambda kv: (kv[0][0], kv[0][1], -1 if kv[0][3] is None else kv[0][3])):
     if scen != "B": continue

@@ -2,8 +2,8 @@
 
 A  attack from the first step on the true zero-dynamics state (0, xi): attacker guesses g*xi, runs one window
    (192 steps), then stops; 3 windows in total (window 0 attacked, 1 and 2 aftermath).
-B  attack starts from rest at step 192 (state 0): attacker uses amplitude eps, runs 192 steps; 4 windows in total
-   (0 calm, 1 and 2 attacked, 3 aftermath).
+B  attack starts from rest at step 192 (state 0): attacker uses amplitude eps, runs 192 steps (= window 1); 4 windows
+   in total (0 calm, 1 attacked, 2 aftermath, 3 later).
 Each configuration with 3 LWE key seeds, stable (z0 = 0.7) and unstable (z0 = 1.02) zero.
 Writes det_results/zero_sweep.json.  Run with the research venv python:  python zero_sweep.py
 """
