@@ -11,7 +11,7 @@ from systems import LinearPaper, FourTank, simulate
 
 CASES = [  # plant class, controller kwargs, steps, sensor unit, actuator unit
     (LinearPaper, dict(), 6144, 1 / 5.0, 1 / 5.0),      # unit = 1/cs: one quantization step
-    (FourTank, dict(), 1024, 0.2, 0.2),                            # cm and V
+    (FourTank, dict(), 1536, 0.2, 0.1),                            # cm and V
 ]
 
 

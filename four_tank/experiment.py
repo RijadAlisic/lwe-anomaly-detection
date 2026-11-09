@@ -15,13 +15,13 @@ The log has the same keys for every mode: t, y, u, rho (residual in output units
 from dataclasses import dataclass
 import numpy as np
 from systems import LinearPaper, FourTank, simulate
-from quantized import QuantizedLinear, QuantizedFourTank, run as run_quantized
+from quantized import QuantizedLinear, QuantizedFourTank, PAPER, AERO2, run as run_quantized
 from encrypted import run as run_encrypted
 
 PLANTS = {"linear": LinearPaper, "fourtank": FourTank}
 MODES = ("nominal", "quantized", "encrypted")
-LWE_SEED = {"linear": 4, "fourtank": 1}   # linear: the paper's LWE parameters decrypt wrongly in a few steps of most runs;
-                                           # seed 4 has none (see README); encrypted.run reports dec_errors
+LWE_SEED = {"linear": 4, "fourtank": 1}   # with the PAPER preset the linear plant decrypts wrongly in a few steps of most
+                                           # runs; seed 4 has none (see README).  AERO2 has none for any seed.
 
 
 @dataclass
@@ -56,10 +56,10 @@ class Scenario:
 def default_scenario(plant):
     if plant == "linear":   # the paper: 32 key epochs of 192 steps, attacks of +-5 quantization steps
         return Scenario("linear", 6144, 1 / 5.0, 5, 1 / 5.0, 5)
-    return Scenario("fourtank", 1024, 1.0, 1, 0.01, 100, offset_h2=1.0)   # +-1 cm sensor, +-1 V actuator
+    return Scenario("fourtank", 1536, 1 / 5.0, 5, 1 / 10.0, 10, offset_h2=1.0)   # +-1 cm sensor, +-1 V actuator
 
 
-def run(plant, mode, scenario=None, keep_ciphertexts=False):
+def run(plant, mode, scenario=None, keep_ciphertexts=False, lwe="aero2"):
     sc = scenario or default_scenario(plant)
     sens, act = sc.draws()
     if mode == "nominal":
@@ -78,13 +78,14 @@ def run(plant, mode, scenario=None, keep_ciphertexts=False):
         y, u, rho = out["y"], out["u"], out["rho_unscaled"] / spec.cs          # residual in output units
     elif mode == "encrypted":
         spec = QuantizedLinear() if plant == "linear" else QuantizedFourTank()
+        spec.lwe = {"aero2": AERO2, "paper": PAPER}[lwe]
         if plant == "fourtank":
             spec.offset_h2 = sc.offset_h2
         out = run_encrypted(spec, sc.n, sensor_attack=lambda k: sens.get(k, 0),
                             actuator_attack=lambda k: act.get(k, 0) * spec.c ** (k % spec.kp + 1), seed=LWE_SEED[plant],
                             keep_ciphertexts=keep_ciphertexts)
         y, u, rho = out["y"], out["u"], out["rho"]
-        extra = {k: out[k] for k in ("enc_y", "enc_u", "enc_rho", "q", "dec_errors")}
+        extra = {k: out[k] for k in ("enc_y", "enc_u", "enc_rho", "q", "dec_errors", "timing")}
         extra["lwe"] = spec.lwe
         if keep_ciphertexts:
             extra["res_ct"] = out["res_ct"]

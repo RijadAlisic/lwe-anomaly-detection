@@ -9,7 +9,7 @@ import experiment as ex
 
 def main(out="windows_linear_paper.npz"):
     sc = ex.default_scenario("linear")
-    log = ex.run("linear", "encrypted", sc, keep_ciphertexts=True)
+    log = ex.run("linear", "encrypted", sc, keep_ciphertexts=True, lwe="paper")   # the paper's parameters
     T = log["lwe"]["T"]
     Pw = log["res_ct"][:, :-1].reshape(-1, T, log["lwe"]["v"])
     bw = log["res_ct"][:, -1].reshape(-1, T)

@@ -30,15 +30,25 @@ nonlinear four-tank process of the KTH lab.
 | 3 | `encrypted.py` | encrypted control; the log adds the encrypted measurement, input and residual |
 | 4 | (next) | anomaly detection (`run_demo.py` is a first version for the four-tank) |
 
-### Encrypted control: parameters and decryption failures
+### Encrypted control: parameter sets and decryption failures
 
 `mode="encrypted"` evaluates the integer controller on LWE ciphertexts and also logs the encrypted values (second
 ciphertext component) of the measurement, the input and the residual, drawn as a gray background in the gif, as in
-Fig. 7 of the paper. The linear plant uses the paper's parameters (`v = 64, q = 16381, r = 400, sigma = 26`, key
-refresh every 192 steps). With these parameters the noise reaching the controller input is `e_(k-2) - 2 e_(k-1)`
-(standard deviation about 2.2 sigma = 58, against the limit r/2 = 200), so **decryption fails in a few steps of most
-6144-step runs** (0 to 5 per run over 8 seeds, mean about 2.4). `encrypted.run` counts them (`dec_errors`); the
-default seed of the linear gif is one with none. The four-tank uses toy parameters (see below) and had none.
+Fig. 7 of the paper. Two parameter sets are defined in `quantized.py`:
+
+| Preset | v | q | sigma | r | Used for |
+|---|---|---|---|---|---|
+| `AERO2` | 64 | 2^23 + 9 | 50 | 4096 | the gifs (Aero2 / Busan demo parameters; r chosen for this q) |
+| `PAPER` | 64 | 16381 | 26 | 400 | the paper's example; `export_windows.py` and the overnight detection |
+
+Both plants use the same kind of integer controller with scale `c = 1` (`cs = 5` for both; `cu = 5` for the linear
+plant and `cu = 10` for the four-tank), so the scaled signals stay small and a modulus of 8.4 million is enough.
+With `PAPER`, the noise reaching the controller input is `e_(k-2) - 2 e_(k-1)` (standard deviation about
+2.2 sigma = 58, against the limit r/2 = 200), so **decryption fails in a few steps of most 6144-step runs**
+(0 to 5 per run, mean about 2.4; about 5.7e-4 per step). With `AERO2` there are none. `encrypted.run` counts them
+(`dec_errors`). The gifs are meant to show the cost of each stage for a fixed parameter set: the encrypted gifs print
+the time per sample of encryption, homomorphic control and decryption (Python, one core). Security levels are not
+claimed for `AERO2`; the paper's single 80-bit experiment is the `PAPER` one.
 
 ### Animated plots
 

@@ -6,6 +6,7 @@ ciphertexts, with the same integer conventions as quantized.run: the sensor atta
 ciphertext (a is added to yq), the actuator attack adds r*a to the input ciphertext (a is added to U).  We also log the 'encrypted values' (second component b of each ciphertext, centered
 mod q) next to the plaintext, as in Fig. 7 of the paper.
 """
+import time
 import numpy as np
 import lwe
 
@@ -27,6 +28,7 @@ def run(spec, n_steps, sensor_attack=None, actuator_attack=None, seed=1, keep_ci
     Xp = np.zeros((n, 1), dtype=np.int64)                           # plaintext shadow, only to count decryption errors
     dec_errors, error_steps = 0, []
     res_ct = []
+    tm = dict(encrypt=0.0, evaluate=0.0, decrypt=0.0)
     for k in range(n_steps):
         kb = k % kp
         if k % P["T"] == 0:
@@ -36,7 +38,10 @@ def run(spec, n_steps, sensor_attack=None, actuator_attack=None, seed=1, keep_ci
             Xp = np.zeros_like(Xp)
         y = pl.y()
         yq = int(np.round(cs * y))
+        t0 = time.perf_counter()
         Ye = L.encrypt([yq])
+        tm['encrypt'] += time.perf_counter() - t0
+        t0 = time.perf_counter()
         if sensor_attack and sensor_attack(k):
             Ye = Ye.copy(); Ye[0, -1] = (Ye[0, -1] + r * sensor_attack(k)) % q
         Ys = (c ** kb * Ye) % q
@@ -44,6 +49,7 @@ def run(spec, n_steps, sensor_attack=None, actuator_attack=None, seed=1, keep_ci
         Yhat = (L.lin(M["Co"], X) + L.lin(M["Do"], Ys)) % q
         Xn = (L.lin(M["A"], X) + L.lin(M["B"], Ys)) % q
         Rho = (c ** (kb + 1) * Ye - Yhat) % q
+        tm['evaluate'] += time.perf_counter() - t0
         if actuator_attack and actuator_attack(k):
             U = U.copy(); U[0, -1] = (U[0, -1] + r * actuator_attack(k)) % q
         ya = yq + (sensor_attack(k) if sensor_attack else 0)        # shadow: what the controller should see
@@ -55,7 +61,9 @@ def run(spec, n_steps, sensor_attack=None, actuator_attack=None, seed=1, keep_ci
         if bad:
             error_steps.append(k)
         Xp = M["A"] @ Xp + M["B"] * Ysp
+        t0 = time.perf_counter()
         u = L.decrypt(U)[0] / (c ** (kb + 1) * cu)
+        tm['decrypt'] += time.perf_counter() - t0
         rho = L.decrypt(Rho)[0] / c ** (kb + 1) / cs                # residual in output units
         for key, val in zip(log, (y, yq, u, rho, centered(Ye[:, -1], q)[0], centered(U[:, -1], q)[0],
                                   centered(Rho[:, -1], q)[0])):
@@ -66,6 +74,7 @@ def run(spec, n_steps, sensor_attack=None, actuator_attack=None, seed=1, keep_ci
         pl.apply(u)
     out = {k: np.array(v) for k, v in log.items()}
     out["q"] = q
+    out["timing"] = {k: 1e3 * v / n_steps for k, v in tm.items()}          # ms per sample (Python, one core)
     if keep_ciphertexts:
         out["res_ct"] = np.array(res_ct)
     out["error_steps"] = error_steps

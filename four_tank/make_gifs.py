@@ -62,7 +62,11 @@ def make_gif(plant, mode, number, lim, frames, outdir, seconds=10.0):
     axes[0].text(0.5 * (L["actuator_window"][0] + L["actuator_window"][1]) * Ts, 0.97, "actuator attack", ha="center",
                  va="top", fontsize=7, color="#a03a00", transform=tr, zorder=10)
     axes[2].set_xlabel(TIME[plant])
-    fig.subplots_adjust(left=0.13, right=0.86, top=0.93, bottom=0.09, hspace=0.12)   # identical plot area in every gif
+    if encrypted:                                       # what one sample costs, for this parameter set
+        tm = L["timing"]
+        fig.text(0.13, 0.012, f"LWE n=64, q=2^23+9, sigma=50 | per sample (Python, 1 core): encrypt {tm['encrypt']:.2f} ms, "
+                 f"control {tm['evaluate']:.2f} ms, decrypt {tm['decrypt']:.2f} ms", fontsize=6, color="#555555")
+    fig.subplots_adjust(left=0.13, right=0.86, top=0.93, bottom=0.13, hspace=0.12)   # identical plot area in every gif
     idx = np.unique(np.linspace(1, len(t), frames).astype(int))
 
     def draw(i):

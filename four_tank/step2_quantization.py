@@ -13,7 +13,7 @@ from quantized import QuantizedLinear, QuantizedFourTank, run
 
 CASES = [  # spec, steps, sensor attack range (integers), actuator attack range (integers in U)
     (QuantizedLinear(), 6144, 5, 5),
-    (QuantizedFourTank(), 1024, 1, 100),
+    (QuantizedFourTank(), 1536, 5, 10),
 ]
 
 

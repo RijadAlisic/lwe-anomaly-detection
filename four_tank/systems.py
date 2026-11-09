@@ -7,7 +7,6 @@ Common interface: sys.y() measures, sys.apply(u) advances one sample.  The contr
     xhat+ = Ac xhat + Bc y,   u = Cc xhat,   yhat = Co xhat + Do y,   residual rho = y - yhat.
 """
 import numpy as np
-from scipy.linalg import solve_discrete_are
 import plant
 
 
@@ -53,16 +52,15 @@ class FourTank:
     def apply(self, u):
         self.h = plant.step(self.h, self.u0 + np.array([u, 0.0]), self.Ts)
 
+    cs, cu = 5.0, 10.0                            # output gain (0.2 cm steps) and input gain (0.1 V steps)
+
     @classmethod
     def controller(cls):
-        h0, u0 = plant.operating_point()
-        A, B, C = plant.linearize_siso(h0, u0, cls.Ts)
-        R = np.array([[20.0]])
-        X = solve_discrete_are(A, B, np.diag([1.0, 0.1]), R)
-        K = np.linalg.solve(R + B.T @ X @ B, B.T @ X @ A)
-        Y = solve_discrete_are(A.T, C.T, 0.05 * np.eye(2), np.array([[0.25]]))
-        L = A @ Y @ C.T @ np.linalg.inv(C @ Y @ C.T + 0.25)
-        return dict(A=A - L @ C - B @ K, B=L, C=-K, Co=C, Do=np.zeros((1, 1)))
+        """Same structure as the paper's integer controller (c = 1): u = (y[k-2] - 2 y[k-1]) / cu, acting on
+        yq = cs * y, so on the real signals the gain is cs/cu.  Stabilizes the four-tank with a settling time
+        of about 7 steps."""
+        return dict(A=np.array([[0.0, 0.0], [1.0, 0.0]]), B=np.array([[1.0], [-1.0]]),
+                    C=(cls.cs / cls.cu) * np.array([[-1.0, 1.0]]), Co=np.array([[1.0, 0.0]]), Do=np.zeros((1, 1)))
 
 
 def simulate(system, ctrl, n_steps, sensor_attack=None, actuator_attack=None):
