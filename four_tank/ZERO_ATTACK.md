@@ -17,7 +17,7 @@ The paper's B has b1 = 0 (relative degree 2, no zero).  With b1 != 0 the zero is
 | stable zero | 0.7 | -0.3148 | 1.001 (unstable), 0.1 |
 | unstable zero | 1.02 | -0.2053 | 1.001 (unstable), 0.1 |
 
-Initial state (the zero-dynamics direction): x(0) = (0, xi) with xi = 3.0 (stable) and xi = 0.7 (unstable).
+Initial state (the zero-dynamics direction): x(0) = (0, xi) with xi = 0.7 in both cases.
 
 ## Controller (integer, same structure as the paper's eq. (23), c = 1, reset every kp = 64 steps)
 
@@ -28,10 +28,17 @@ k = 0, 64, 128, ... .  Gains found by a brute-force search for a stable closed l
 
 | case | (D, a, b) | cs | cu | real gain cs/cu*(D,a,b) | closed-loop pole radii |
 |---|---|---|---|---|---|
-| stable zero | (5, 3, 1) | 5 | 5 | (5, 3, 1) | 0.75, 0.70, 0.70, 0.61 |
-| unstable zero | (-5, -1, 1) | 5 | 10 | (-2.5, -0.5, 0.5) | 0.97, 0.53, 0.53, 0.38 |
+| stable zero | (2, 1, 3) | 5 | 10 | (1, 0.5, 1.5) | spectral radius 0.81 |
+| unstable zero | (-5, -6, 4) | 5 | 10 | (-2.5, -3, 2) | spectral radius 0.84 |
 
-The unstable-zero loop has a slow pole at 0.974, which is why the plateau after the initial transient decays slowly.
+Same cs, cu and xi in both cases.  Feedback cannot move the zeros, only the poles; but this two-tap structure has
+three free gains for four closed-loop poles, so the poles cannot be placed exactly.  The gains are the integer
+choices with the smallest spectral radius (unstable) and, for the stable plant, a low-gain choice with radius close
+to it that does not produce quantizer limit cycles (higher-gain choices with radius 0.74 did).  An earlier version
+used gains designed for z0 = 1.2 on the z0 = 1.02 plant (radius 0.97), which made the transient much slower.
+Exact pole placement would need a dynamic (observer-based) controller, whose rational matrices do not fit the integer
+form with c = 1.
+
 The residual is the paper's: yq[k] - yq[k-1] (the controller's "estimate" is the previous quantized output), so it is
 zero whenever the quantized output does not change.  The output quantization step is 1/cs = 0.2, so the deadband is
 |y| < 0.1.
@@ -61,12 +68,16 @@ ciphertexts, LLL (blaster), 6 shortest vectors, chi-square test at alpha = 0.001
 
 | zero | attack | nonzero residuals | max x2 | Z | alarm |
 |---|---|---|---|---|---|
-| stable | none | 9 | 3.0 | 31.7 | yes (transient) |
-| stable | matched | 0 | 3.0 | 10.8 | no |
-| stable | mismatched | 17 | 3.0 | 43.5 | yes |
-| unstable | none | 7 | 0.84 | 66.7 | yes (transient) |
+| stable | none | 4 | 0.70 | 102.1 | yes (transient) |
+| stable | matched | 0 | 0.70 | 10.8 | no |
+| stable | mismatched | 2 | 0.70 | 64.2 | yes |
+| unstable | none | 21 | 2.40 | 44.5 | yes (transient) |
 | unstable | matched | 0 | 30.7 | 10.8 | no |
-| unstable | mismatched | 3 | 15.4 | 112.2 | yes |
+| unstable | mismatched | 6 | 15.4 | 31.1 | yes |
+
+The no-attack transient differs in size although the pole radii are alike: with the same xi the output peaks at 0.28
+(stable zero) and 1.3 (unstable zero).  This comes from the zero, which feedback cannot change: a non-minimum-phase
+zero close to the unstable pole 1.001 makes the response to the same initial state large, with an overshoot.
 
 Detectability of a mismatch depends on the amplitude xi, not on the stability of the zero: a state error of
 (1-g)*xi shows up as about 0.4*(1-g)*xi in the output, and only deviations above the quantization deadband (0.1)

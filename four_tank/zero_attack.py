@@ -14,8 +14,8 @@ from quantized import AERO2
 
 B2 = 0.4722
 CASES = {   # zero, controller gains (D, a, b) on yq, cs, cu
-    "stable": dict(z0=0.7, gains=(5, 3, 1), cs=5.0, cu=5.0),
-    "unstable": dict(z0=1.02, gains=(-5, -1, 1), cs=5.0, cu=10.0),
+    "stable": dict(z0=0.7, gains=(2, 1, 3), cs=5.0, cu=10.0),
+    "unstable": dict(z0=1.02, gains=(-5, -6, 4), cs=5.0, cu=10.0),
 }
 
 

@@ -13,7 +13,7 @@ import zero_attack as za
 import detect
 
 N = 192                                        # one key epoch = one detection window
-XI = {"stable": 3.0, "unstable": 0.7}          # zero-dynamics amplitude of the true initial state
+XI = {"stable": 0.7, "unstable": 0.7}          # zero-dynamics amplitude of the true initial state
 GUESS = 0.5                                    # mismatched attacker uses GUESS * xi
 ATT = {"none": None, "matched": 1.0, "mismatched": GUESS}
 
