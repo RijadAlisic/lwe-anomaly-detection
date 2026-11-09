@@ -1,88 +1,105 @@
-# Anomaly detection with LWE-encrypted control: reproducible examples
+# Anomaly detection with LWE-encrypted control
 
-Code accompanying the paper *Anomaly Detection with LWE Encrypted Control* (Alisic, Kim, Sandberg).
-It contains three small, self-contained examples. Nothing here needs the secret key at the detector.
+Reproducible examples for the paper *Anomaly Detection with LWE Encrypted Control* (Alisic, Kim, Sandberg).
+A controller that works on LWE ciphertexts, and a detector that, without the secret key, flags attacks on the loop.
 
-| Folder | What it does | Run time |
-|---|---|---|
-| `table1/` | Exact Type II errors of the detector's test and of the attacker's test (Table I of the paper) | seconds |
-| `fig7/` | Regenerates the numerical-results figure of the paper from the saved run | seconds |
-| `four_tank/` | Encrypted control of a nonlinear four-tank process, detection of sensor and actuator attacks | about 4 minutes |
+<p align="center">
+  <img src="four_tank/gifs/fourtank_4_detected.gif" width="520" alt="Four-tank process: encrypted control with anomaly detection">
+</p>
+
+The animation above is the end of a staged simulation: the signals of a nonlinear four-tank process under sensor and
+actuator attacks, the encrypted values in the gray background, and the detector's verdict per key epoch filling in
+below.
+
+## What is here
+
+| Folder | Content |
+|---|---|
+| `four_tank/` | staged simulation of two plants (nominal, quantized, encrypted, detected), stealthy-attack study |
+| `table1/` | exact Type II errors of the detector's test and of the attacker's test (Table I of the paper) |
+| `fig7/` | regenerates the numerical-results figure of the paper from the saved run |
 
 ## Quick start
 
 ```bash
 pip install -r requirements.txt
-python table1/type2_table.py                    # reproduces Table I (max deviation 0.07 percentage points)
-python fig7/make_fig7.py 3.5 3.5 fig7/out.pdf   # Fig. 7 from fig7/windowed_det_data.npz
-cd four_tank && python run_demo.py --windows 8  # detection rate versus attack size
+python table1/type2_table.py                       # Table I (matches the paper within 0.07 percentage points)
+cd fig7 && python make_fig7.py 3.5 3.5 out.pdf     # Fig. 7 from windowed_det_data.npz
+cd ../four_tank && python make_gifs.py             # the gifs below (needs the saved det_results, ~2 minutes)
 ```
 
-## Staged simulation (`four_tank/`)
+Re-running the detector (about 2 s per window per plant, needs `blaster-python` or `fpylll`):
 
-The simulation is built in steps, each runnable on its own, for two plants: the linear plant of the paper and the
-nonlinear four-tank process of the KTH lab.
+```bash
+python detect.py linear      # and: python detect.py fourtank      -> det_results/<plant>_aero2.npz
+```
 
-| Step | Script | Content |
+## The staged simulation
+
+Two plants: the linear plant of the paper (Ts = 1 s) and the nonlinear four-tank process of the KTH lab (Ts = 2 s;
+equations and parameters from the lab's MATLAB sources, `h2` controlled by pump 1, linearized around the exact equilibrium).
+Each stage adds one thing and has its own script; `experiment.run(plant, mode)` is the single entry point and
+`make_gifs.py` draws one gif per stage. All gifs use the same attack storyline (calm start, sensor attack, recovery,
+actuator attack, calm end; 36 key epochs of 192 steps, fixed seed) and the same axis limits per plant.
+
+| Stage | Mode | What changes | Script |
+|---|---|---|---|
+| 1 | `nominal` | floating-point observer-based controller, attack injections | `step1_feedback_attacks.py` |
+| 2 | `quantized` | quantized signals and the integer controller of eq. (23) with periodic state reset | `step2_quantization.py` |
+| 3 | `encrypted` | the integer controller evaluated on LWE ciphertexts; adds the encrypted measurement, input and residual | `encrypted.py`, `lwe.py` |
+| 4 | `detected` | key-less detection per key epoch: kernel lattice of the residual ciphertexts, LLL, 6-vector chi-square test | `detect.py`, `replay.py` |
+
+| | Linear plant | Four-tank process |
 |---|---|---|
-| 1 | `step1_feedback_attacks.py` | plants in closed loop with sensor and actuator attack injections (floating point) |
-| 2 | `step2_quantization.py` | quantized signals and the integer controller of eq. (23); the linear plant reproduces the paper's saved run exactly |
-| 3 | `encrypted.py` | encrypted control; the log adds the encrypted measurement, input and residual |
-| 4 | `detect.py` | anomaly detection with the Aero2 parameters: per window of 192 residual ciphertexts, kernel lattice, LLL (blaster), 6-vector chi-square test; about 2 s per window in Python on one core (measured, see `det_results`). Run with the research venv (needs `blaster`/`fpylll`); results are stored in `det_results/<plant>_aero2.npz` and drawn by `make_gifs.py` as `*_4_detected.gif` (the flags fill in after the signals) |
+| 1. nominal | <img src="four_tank/gifs/linear_1_nominal.gif" width="330"> | <img src="four_tank/gifs/fourtank_1_nominal.gif" width="330"> |
+| 2. quantized | <img src="four_tank/gifs/linear_2_quantized.gif" width="330"> | <img src="four_tank/gifs/fourtank_2_quantized.gif" width="330"> |
+| 3. encrypted | <img src="four_tank/gifs/linear_3_encrypted.gif" width="330"> | <img src="four_tank/gifs/fourtank_3_encrypted.gif" width="330"> |
+| 4. detected | <img src="four_tank/gifs/linear_4_detected.gif" width="330"> | <img src="four_tank/gifs/fourtank_4_detected.gif" width="330"> |
 
-### Encrypted control: parameter sets and decryption failures
+In the encrypted gifs the gray background is the second ciphertext component (centered modulo q), as in Fig. 7 of the
+paper, and the footer gives the time per sample for encryption, homomorphic control and decryption (about 0.12, 0.09 and
+0.07 ms in Python on one core). In the detected gifs a window is gray until its last sample has arrived, yellow while
+the detector works on it, and green (no alarm) or red (alarm) afterwards. The plant runs at its sampling rate and
+never waits; the detector runs beside it, newest window first, using the measured compute time per window (about
+2 s). Window lengths are 192 s (linear) and 384 s (four-tank), so the flags appear about 2 s after each window closes.
+`make_gifs.py --time-scale S --workers N` rescales the detector time or the number of detector workers.
 
-`mode="encrypted"` evaluates the integer controller on LWE ciphertexts and also logs the encrypted values (second
-ciphertext component) of the measurement, the input and the residual, drawn as a gray background in the gif, as in
-Fig. 7 of the paper. Two parameter sets are defined in `quantized.py`:
+### Parameters
 
 | Preset | v | q | sigma | r | Used for |
 |---|---|---|---|---|---|
-| `AERO2` | 64 | 2^23 + 9 | 50 | 4096 | the gifs (Aero2 / Busan demo parameters; r chosen for this q) |
-| `PAPER` | 64 | 16381 | 26 | 400 | the paper's example; `export_windows.py` and the overnight detection |
+| `AERO2` | 64 | 2^23 + 9 | 50 | 4096 | all gifs and the stealth study (the parameters of the Aero2 / Busan demos; r chosen for this q) |
+| `PAPER` | 64 | 16381 | 26 | 400 | the paper's example; `export_windows.py` and `overnight_detection.py` |
 
-Both plants use the same kind of integer controller with scale `c = 1` (`cs = 5` for both; `cu = 5` for the linear
-plant and `cu = 10` for the four-tank), so the scaled signals stay small and a modulus of 8.4 million is enough.
-With `PAPER`, the noise reaching the controller input is `e_(k-2) - 2 e_(k-1)` (standard deviation about
-2.2 sigma = 58, against the limit r/2 = 200), so **decryption fails in a few steps of most 6144-step runs**
-(0 to 5 per run, mean about 2.4; about 5.7e-4 per step). With `AERO2` there are none. `encrypted.run` counts them
-(`dec_errors`). The gifs are meant to show the cost of each stage for a fixed parameter set: the encrypted gifs print
-the time per sample of encryption, homomorphic control and decryption (Python, one core). Security levels are not
-claimed for `AERO2`; the paper's single 80-bit experiment is the `PAPER` one.
+With `AERO2` there are no decryption failures. With `PAPER` the noise reaching the controller input has standard
+deviation about 58 against the limit r/2 = 200, so decryption fails in a few steps of most 6144-step runs; `encrypted.run`
+counts them (`dec_errors`). **No security level is claimed for `AERO2`**; the paper's single 80-bit experiment is the
+`PAPER` one. The detector for `PAPER` needs BKZ with sieving (g6k): `export_windows.py` exports the ciphertexts and
+`overnight_detection.py` reduces them window by window (resumable); it is provided here and its results are not.
 
-### Animated plots
+### Harder parameters
 
-`python make_gifs.py` writes one gif per controller version and plant to `four_tank/gifs/`, in the order
-nominal, quantized (encrypted and detected follow with steps 3 and 4). All gifs share the layout, the axis limits
-and a fixed attack storyline (`experiment.py`): calm start, sensor attack in the second quarter, recovery, actuator
-attack in the last quarter, fixed random seed. `experiment.run(plant, mode)` is the single entry point.
+`sigma_sweep.py` and `bkz_probe.py` try larger noise. On a four-tank window, sigma = 200 makes LLL miss the attack, and
+BKZ-40 recovers it in about 4 s; at sigma = 400 to 1600 (r scaled with sigma) BKZ-50 is no longer enough. These are single-window
+probes, not a study.
 
-## `four_tank/`: what is implemented
+## Stealthy attacks
 
-* **Plant**: the minimum-phase four-tank process of the KTH water-tank lab (parameters and equations from the
-  lab's MATLAB sources), simulated nonlinearly with RK4. `u1` is the control input, `h2` the output, `u2` is fixed.
-* **Encryption**: the secret-key LWE scheme of the paper, `Enc(m) = (P, P s + r m + e mod q)` (`lwe.py`).
-* **Controller**: an observer-based controller designed for the linearized plant, rounded to integers with
-  scale `c` and evaluated on ciphertexts as in eq. (23) of the paper: periodic state reset every `kp` steps,
-  encrypted input `U`, encrypted prediction `Yhat`, encrypted residual `c^(kbar+1) Y - Yhat` (`loop.py`).
-  The script checks that the decrypted residual equals a plaintext shadow of the controller.
-* **Detector**: for each key epoch it builds the q-ary kernel lattice of the residual ciphertexts, finds a short
-  filtering vector `d` with LLL, and applies the two-sided test of Theorem 1 (`detector.py`).
-* **Attacks**: an additive attack on the measurement ciphertext (sensor) and an injection on the pump voltage (actuator).
+`four_tank/STEALTH.md`: a zero-dynamics attack on a plant with a stable or an unstable transmission zero. An attacker who
+knows the hidden state keeps the output and the residual at zero, the detector does not alarm, and for an unstable zero
+the hidden state grows. With a wrong guess the residual is nonzero and the detector alarms (160 runs, 5 key seeds,
+`stealth_sweep.py`).
 
-## Important limits of this demo
+<p align="center"><img src="four_tank/stealth_fig_paper.png" width="420"></p>
 
-* **The LWE parameters are toy parameters** (`v = 8`, `q` about 2^40, `sigma = 2`) so that exact LLL finishes in
-  seconds. They are **not secure**. The paper uses `v = 64`, `q = 16381`, and BKZ (g6k) for the lattice step.
-* **Nominal residual is exactly zero because the measurement is quantized with a deadband** (+-0.5 cm).
-  Attacks whose physical effect stays inside the deadband are invisible to any residual-based detector
-  (in the run below, an actuator injection of 0.05 V is not detected, as expected).
-* The noise covariance used by the test is computed exactly from the controller (`Loop.noise_map`).
-* Results of one run (`--windows 8 --alpha 0.01`, 96 windows): false-alarm rate 0/24, sensor bias of 1 to 5 steps
-  detected in 100% of the windows, actuator injection of 0.05 V detected 0%, 0.1 V 88%, 0.2 V and above 100%
-  (`four_tank/results.csv`, `four_tank/detection_vs_attack.pdf`).
-* The Fig. 7 example of the paper (linear plant, `v = 64`) used the authors' research code, which depends on
-  g6k; `fig7/` ships the saved detector output and the plotting script only.
+## Limits
+
+* The nominal residual is exactly zero because the measurement is quantized with a deadband. Attacks whose effect stays
+  inside the deadband are invisible to any residual-based detector, encrypted or not.
+* The noise covariance used by the test is computed exactly from the controller (`encrypted.noise_map`).
+* The detector times are from one Python process on one core; they show the order of magnitude.
+* The Fig. 7 example of the paper used the authors' research code, which depends on g6k; `fig7/` ships the saved
+  detector output and the plotting script only.
 
 ## License
 

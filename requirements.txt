@@ -2,3 +2,7 @@ numpy
 scipy
 sympy>=1.12
 matplotlib
+pillow            # gifs
+# the detector (four_tank/detect.py, stealth study) needs a lattice-reduction library:
+blaster-python    # fast LLL / BKZ (used by default)
+fpylll            # slower fallback; the overnight run for the paper's parameters also needs g6k

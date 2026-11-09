@@ -1,12 +1,11 @@
-"""Example figure: no-attack transient with a zero-dynamics attack that starts K0 steps into the window.
+"""Example for the stealth study: a disturbance and a zero-dynamics attack that start 4 steps into key epoch (window) 1.
 
-The attacker (full state information, as in the unencrypted setting) computes the input that drives the output to
-zero in one step and then keeps it there with the zero dynamics, also cancelling the controller's own input:
-    u_total(K0) = -(1.001 x1 + 0.4 x2hat) / b1,   u_total(k) = -0.4 x2hat(k) / b1  for k > K0,   U_a = cu*u_total - U_c.
-matched:    x2hat = x2 (the attacker knows the hidden state)
-mismatched: x2hat = 0.5 x2
-Encrypted loop, AERO2 parameters, detection of the window with the 6-vector chi-square test.
-Writes stealth_example.png/pdf and det_results/stealth_example.npz.  Run with the research venv python."""
+At step K0 the plant state is kicked to (0, xi) (a disturbance), which would produce a transient.  The attacker injects
+the input that keeps the output at zero and also cancels the controller's own input:
+    u_total(k) = -(A xhat)_1 / b1   (one step ahead, keeps y = 0),   U_a = round(cu * u_total) - U_c,
+with xhat = (x1, g * x2): g = 1 is the matched attacker (knows the hidden state), g = 0.5 guesses half of it, g = 0
+injects nothing.  Encrypted loop with the AERO2 parameters; the window is tested with the 6-vector chi-square test.
+Writes stealth_example.png/pdf and det_results/stealth_example.npz.  Run with a Python that has blaster or fpylll."""
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")

@@ -7,3 +7,5 @@ four_tank/windows_linear_paper.npz
 four_tank/det_results/window_*.npz
 four_tank/overnight.log
 *.log
+paper_notes/
+*.log

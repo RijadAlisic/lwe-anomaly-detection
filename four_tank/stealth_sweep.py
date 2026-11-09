@@ -1,6 +1,7 @@
 """Systematic test around the example figure (stealth_example.py): disturbance + zero-dynamics attack 4 steps into window 1.
 kind {stable, unstable} x kick amplitude xi x attacker's state guess g, 5 key seeds.  Window 0 is calm (false alarms),
-window 1 is where the disturbance and the attack start.  Writes det_results/stealth_sweep.json.  Run via run_stealth_sweep.sh"""
+window 1 is where the disturbance and the attack start.  Writes det_results/stealth_sweep.json.  Run with a Python that has blaster or fpylll; set OMP_NUM_THREADS=1
+before starting (six worker processes each use one thread)."""
 import json
 import numpy as np
 from multiprocessing import Pool

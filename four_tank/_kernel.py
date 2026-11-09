@@ -1,4 +1,4 @@
-"""Kernel lattice basis mod q (pure Python), shared by detector.py and detector_fpylll.py."""
+"""Kernel lattice basis mod q (pure Python)."""
 
 
 def kernel_mod_q(P, q):
