@@ -18,6 +18,18 @@ python fig7/make_fig7.py 3.5 3.5 fig7/out.pdf   # Fig. 7 from fig7/windowed_det_
 cd four_tank && python run_demo.py --windows 8  # detection rate versus attack size
 ```
 
+## Staged simulation (`four_tank/`)
+
+The simulation is built in steps, each runnable on its own, for two plants: the linear plant of the paper and the
+nonlinear four-tank process of the KTH lab.
+
+| Step | Script | Content |
+|---|---|---|
+| 1 | `step1_feedback_attacks.py` | plants in closed loop with sensor and actuator attack injections (floating point) |
+| 2 | `step2_quantization.py` | quantized signals and the integer controller of eq. (23); the linear plant reproduces the paper's saved run exactly |
+| 3 | (next) | encrypted control |
+| 4 | (next) | anomaly detection (`run_demo.py` is a first version for the four-tank) |
+
 ## `four_tank/`: what is implemented
 
 * **Plant**: the minimum-phase four-tank process of the KTH water-tank lab (parameters and equations from the

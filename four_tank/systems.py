@@ -7,7 +7,6 @@ Common interface: sys.y() measures, sys.apply(u) advances one sample.  The contr
     xhat+ = Ac xhat + Bc y,   u = Cc xhat,   yhat = Co xhat + Do y,   residual rho = y - yhat.
 """
 import numpy as np
-from scipy.signal import place_poles
 from scipy.linalg import solve_discrete_are
 import plant
 
@@ -30,21 +29,13 @@ class LinearPaper:
         self.x = self.A @ self.x + self.B * u
 
     @classmethod
-    def controller(cls, blend=0.5):
-        """Pole placement as in the research code: state feedback + integrator on y, observer, and a
-        blend of measurement and prediction in the residual."""
-        A, B, C, Ts = cls.A, cls.B, cls.C, cls.Ts
-        n = A.shape[0]
-        Aa = np.block([[A, np.zeros((n, 1))], [-Ts * C, np.eye(1)]])
-        Ba = np.vstack([B, np.zeros((1, 1))])
-        K = place_poles(Aa, Ba, [0.85, 0.75, 0.8]).gain_matrix
-        Kx, Ki = K[:, :n], K[:, -1:]
-        L = place_poles(A.T, C.T, [0.01, 0.05]).gain_matrix.T
-        Ac = np.block([[A - L @ C - B @ Kx, -B @ Ki], [np.zeros((1, n)), np.eye(1)]])
-        Bc = np.vstack([L, [[-Ts]]])
-        Cc = -np.hstack([Kx, Ki])
-        Co = (1 - blend) * np.hstack([C, np.zeros((1, 1))])
-        return dict(A=Ac, B=Bc, C=Cc, Co=Co, Do=np.array([[blend]]))
+    def controller(cls):
+        """The controller actually used in the paper's run (research code, V1_enc_loop.py): a small integer
+        controller on the quantized signals, X+ = [[0,0],[1,0]] X + [1,-1]^T yq, U = [-1,1] X, yhat = [1,0] X,
+        with c = 1.  Because yq = cs*y and u = U/cs, the scale cs cancels and the same matrices act on the
+        unquantized signals (step 1); step 2 adds the quantization."""
+        return dict(A=np.array([[0.0, 0.0], [1.0, 0.0]]), B=np.array([[1.0], [-1.0]]),
+                    C=np.array([[-1.0, 1.0]]), Co=np.array([[1.0, 0.0]]), Do=np.zeros((1, 1)))
 
 
 class FourTank:

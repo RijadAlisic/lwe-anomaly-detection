@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from systems import LinearPaper, FourTank, simulate
 
 CASES = [  # plant class, controller kwargs, steps, sensor unit, actuator unit
-    (LinearPaper, dict(blend=0.5), 6144, 1 / 5.0, 1 / 5.0),      # unit = 1/cs: one quantization step
+    (LinearPaper, dict(), 6144, 1 / 5.0, 1 / 5.0),      # unit = 1/cs: one quantization step
     (FourTank, dict(), 1024, 0.2, 0.05),                           # cm and V
 ]
 
