@@ -15,7 +15,7 @@ from systems import LinearPaper, FourTank
 
 # LWE parameter presets (key refresh every T = 3 v steps, a multiple of the reset period kp)
 PAPER = dict(v=64, q=16381, r=400, sigma=26.0, T=192)            # the paper's example (80-bit estimate)
-AERO2 = dict(v=64, q=2 ** 23 + 9, r=4096, sigma=50.0, T=192)     # Aero2 / Busan demo; r chosen for this q
+COMPACT = dict(v=64, q=2 ** 23 + 9, r=4096, sigma=50.0, T=192)     # r chosen for this q
 
 
 class QuantizedLinear:
@@ -25,7 +25,7 @@ class QuantizedLinear:
     cs, cu, c, kp = 5.0, 5.0, 1, 64
     M = dict(A=[[0, 0], [1, 0]], B=[[1], [-1]], C=[[-1, 1]], D=[[0]], Co=[[1, 0]], Do=[[0]])
     Ts = LinearPaper.Ts
-    lwe = AERO2
+    lwe = COMPACT
 
     def make_plant(self):
         return LinearPaper()
@@ -37,7 +37,7 @@ class QuantizedFourTank:
     Ts = FourTank.Ts
     cs, cu, c, kp = FourTank.cs, FourTank.cu, 1, 64
     M = dict(A=[[0, 0], [1, 0]], B=[[1], [-1]], C=[[-1, 1]], D=[[0]], Co=[[1, 0]], Do=[[0]])
-    lwe = AERO2
+    lwe = COMPACT
     offset_h2 = 0.0
 
     def make_plant(self):

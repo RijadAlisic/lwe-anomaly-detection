@@ -31,7 +31,7 @@ cd ../four_tank && python make_gifs.py             # the gifs below (needs the s
 Re-running the detector (about 2 s per window per plant, needs `blaster-python` or `fpylll`):
 
 ```bash
-python detect.py linear      # and: python detect.py fourtank      -> det_results/<plant>_aero2.npz
+python detect.py linear      # and: python detect.py fourtank      -> det_results/<plant>_compact.npz
 ```
 
 ## The staged simulation
@@ -68,12 +68,12 @@ never waits; the detector runs beside it, newest window first, using the measure
 
 | Preset | v | q | sigma | r | Used for |
 |---|---|---|---|---|---|
-| `AERO2` | 64 | 2^23 + 9 | 50 | 4096 | all gifs and the stealth study (the parameters of the Aero2 / Busan demos; r chosen for this q) |
+| `COMPACT` | 64 | 2^23 + 9 | 50 | 4096 | all gifs and the stealth study (r chosen for this q) |
 | `PAPER` | 64 | 16381 | 26 | 400 | the paper's example; `export_windows.py` and `overnight_detection.py` |
 
-With `AERO2` there are no decryption failures. With `PAPER` the noise reaching the controller input has standard
+With `COMPACT` there are no decryption failures. With `PAPER` the noise reaching the controller input has standard
 deviation about 58 against the limit r/2 = 200, so decryption fails in a few steps of most 6144-step runs; `encrypted.run`
-counts them (`dec_errors`). **No security level is claimed for `AERO2`**; the paper's single 80-bit experiment is the
+counts them (`dec_errors`). **No security level is claimed for `COMPACT`**; the paper's single 80-bit experiment is the
 `PAPER` one. The detector for `PAPER` needs BKZ with sieving (g6k): `export_windows.py` exports the ciphertexts and
 `overnight_detection.py` reduces them window by window (resumable); it is provided here and its results are not.
 

@@ -4,13 +4,13 @@ import sys, time
 import numpy as np
 from scipy.stats import chi2
 import experiment as ex, encrypted
-from quantized import QuantizedFourTank, AERO2
+from quantized import QuantizedFourTank, COMPACT
 from _kernel import kernel_mod_q
 from detect import centered
 
 sigma, rr, w = float(sys.argv[1]), int(sys.argv[2]), int(sys.argv[3]); betas = [int(b) for b in sys.argv[4:]]
 sc = ex.default_scenario("fourtank")
-spec = QuantizedFourTank(); spec.lwe = dict(AERO2, sigma=sigma, r=rr); spec.offset_h2 = sc.offset_h2
+spec = QuantizedFourTank(); spec.lwe = dict(COMPACT, sigma=sigma, r=rr); spec.offset_h2 = sc.offset_h2
 sens, act = sc.draws()
 out = encrypted.run(spec, sc.n if w >= 8 else 9 * 192, sensor_attack=lambda k: sens.get(k, 0),
                     actuator_attack=lambda k: act.get(k, 0) * spec.c ** (k % spec.kp + 1), seed=ex.LWE_SEED["fourtank"],
@@ -18,7 +18,7 @@ out = encrypted.run(spec, sc.n if w >= 8 else 9 * 192, sensor_attack=lambda k: s
 q, T = out["q"], 192
 seg = out["res_ct"][w * T:(w + 1) * T]; P, b = seg[:, :-1], seg[:, -1]
 Tm = encrypted.noise_map(spec, T)
-print(f"sigma={sigma} r={rr} max|U|,|yq| range q/2r={AERO2['q']/2/rr:.0f}  window {w}  decryption errors {out['dec_errors']}  nonzero residuals {int(np.count_nonzero(out['rho'][w*T:(w+1)*T]))}", flush=True)
+print(f"sigma={sigma} r={rr} max|U|,|yq| range q/2r={COMPACT['q']/2/rr:.0f}  window {w}  decryption errors {out['dec_errors']}  nonzero residuals {int(np.count_nonzero(out['rho'][w*T:(w+1)*T]))}", flush=True)
 B = np.array(kernel_mod_q(P, q), dtype=np.int64)
 from blaster import reduce as blaster_reduce
 def stat(R, K=6):

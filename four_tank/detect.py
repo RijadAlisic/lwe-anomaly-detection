@@ -1,16 +1,16 @@
-"""Step 4: anomaly detection on the encrypted residual, per key epoch (detection window), for the Aero2 parameters.
+"""Step 4: anomaly detection on the encrypted residual, per key epoch (detection window), for the Compact parameters.
 
 For every window of T residual ciphertexts (P_k, b_k) the detector, which never sees the key:
-  1. builds the q-ary kernel lattice {d : d^T P = 0 mod q} and reduces it with LLL (blaster, as in the Aero2
+  1. builds the q-ary kernel lattice {d : d^T P = 0 mod q} and reduces it with LLL (blaster, as in the Compact
      detector; fpylll as a slower fallback),
   2. takes the K shortest vectors d_i and forms X_i = d_i^T b mod q (the secret cancels),
   3. whitens, Z = X^T (D^T Sigma D)^-1 X ~ chi^2_K under the null hypothesis, and raises an alarm if Z exceeds the
      chi^2_K quantile (the multi-vector test of the paper; the single-vector test of Theorem 1 is reported too).
-The time spent per window is recorded.  With the Aero2 parameters (q/sigma about 1.7e5) LLL alone gives vectors
+The time spent per window is recorded.  With the Compact parameters (q/sigma about 1.7e5) LLL alone gives vectors
 short enough, so no BKZ is needed.
 
 Run with a Python that has fpylll (for example the research virtual environment):
-    python detect.py linear      or      python detect.py fourtank       ->  det_results/<plant>_aero2.npz
+    python detect.py linear      or      python detect.py fourtank       ->  det_results/<plant>_compact.npz
 """
 import os, sys, time
 import numpy as np
@@ -35,7 +35,7 @@ def centered(x, q):
 def detect_window(P, b, q, sigma, Tmap, K=K, alpha=ALPHA):
     t0 = time.perf_counter()
     B = np.array(kernel_mod_q(P, q), dtype=np.int64)
-    if blaster_lll is not None:                                                  # fast LLL (as in the Aero2 detector)
+    if blaster_lll is not None:                                                  # fast LLL (as in the Compact detector)
         R = blaster_lll(B.T, delta=0.99999, cores=1, use_seysen=False, depth=0)[1].T
     else:                                                                        # fallback: fpylll (slower)
         A = IntegerMatrix.from_matrix([[int(x) for x in row] for row in B])
@@ -55,7 +55,7 @@ def detect_window(P, b, q, sigma, Tmap, K=K, alpha=ALPHA):
 def main(plant):
     from quantized import QuantizedLinear, QuantizedFourTank
     sc = ex.default_scenario(plant)
-    log = ex.run(plant, "encrypted", sc, keep_ciphertexts=True, lwe="aero2")
+    log = ex.run(plant, "encrypted", sc, keep_ciphertexts=True, lwe="compact")
     spec = QuantizedLinear() if plant == "linear" else QuantizedFourTank()
     T, v, q, sigma = spec.lwe["T"], spec.lwe["v"], spec.lwe["q"], spec.lwe["sigma"]
     res = log["res_ct"]
@@ -74,7 +74,7 @@ def main(plant):
               f"Z={r['Z']:11.1f}  alarm(chi2_{K})={r['flag_chi']}  alarm(single)={r['flag_single']}  "
               f"max|d|={r['norms'].max():.0f}  {r['seconds']:.1f} s  d^T P=0: {r['ok']}", flush=True)
     os.makedirs("det_results", exist_ok=True)
-    np.savez(f"det_results/{plant}_aero2.npz", window=np.arange(nw), attacked=[x[1] for x in rows],
+    np.savez(f"det_results/{plant}_compact.npz", window=np.arange(nw), attacked=[x[1] for x in rows],
              rho_nonzero=[x[2] for x in rows], flag_chi=[x[3]["flag_chi"] for x in rows],
              flag_single=[x[3]["flag_single"] for x in rows], Z=[x[3]["Z"] for x in rows],
              seconds=[x[3]["seconds"] for x in rows], T=T, K=K, alpha=ALPHA, Ts=log["Ts"], n=len(res),

@@ -4,7 +4,7 @@ At step K0 the plant state is kicked to (0, xi) (a disturbance), which would pro
 the input that keeps the output at zero and also cancels the controller's own input:
     u_total(k) = -(A xhat)_1 / b1   (one step ahead, keeps y = 0),   U_a = round(cu * u_total) - U_c,
 with xhat = (x1, g * x2): g = 1 is the matched attacker (knows the hidden state), g = 0.5 guesses half of it, g = 0
-injects nothing.  Encrypted loop with the AERO2 parameters; the window is tested with the 6-vector chi-square test.
+injects nothing.  Encrypted loop with the COMPACT parameters; the window is tested with the 6-vector chi-square test.
 Writes stealth_example.png/pdf and det_results/stealth_example.npz.  Run with a Python that has blaster or fpylll."""
 import numpy as np
 import matplotlib

@@ -10,7 +10,7 @@ Without the attack the same initial state produces a transient (y = 0 at k = 0, 
 The controller is an integer FIR output feedback of the same structure as in the paper (X = past outputs, kp = 64).
 """
 import numpy as np
-from quantized import AERO2
+from quantized import COMPACT
 
 B2 = 0.4722
 CASES = {   # zero, controller gains (D, a, b) on yq, cs, cu
@@ -39,7 +39,7 @@ class ZeroPlant:
 class ZeroSpec:
     c, kp = 1, 64
     Ts = 1.0
-    lwe = AERO2
+    lwe = COMPACT
 
     def __init__(self, kind, xi_true, xi_attack=None, attack_len=None, amp=None):
         cfg = CASES[kind]

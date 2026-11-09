@@ -18,13 +18,13 @@ import os
 from dataclasses import dataclass
 import numpy as np
 from systems import LinearPaper, FourTank, simulate
-from quantized import QuantizedLinear, QuantizedFourTank, PAPER, AERO2, run as run_quantized
+from quantized import QuantizedLinear, QuantizedFourTank, PAPER, COMPACT, run as run_quantized
 from encrypted import run as run_encrypted
 
 PLANTS = {"linear": LinearPaper, "fourtank": FourTank}
 MODES = ("nominal", "quantized", "encrypted", "detected")
 LWE_SEED = {"linear": 4, "fourtank": 1}   # with the PAPER preset the linear plant decrypts wrongly in a few steps of most
-                                           # runs; seed 4 has none (see README).  AERO2 has none for any seed.
+                                           # runs; seed 4 has none (see README).  COMPACT has none for any seed.
 
 
 @dataclass
@@ -66,13 +66,13 @@ def default_scenario(plant):
     return Scenario("fourtank", 36 * 192, 1 / 5.0, 5, 1 / 10.0, 10, offset_h2=1.0, n_attack=32 * 192)  # +-1 cm, +-1 V
 
 
-def run(plant, mode, scenario=None, keep_ciphertexts=False, lwe="aero2"):
+def run(plant, mode, scenario=None, keep_ciphertexts=False, lwe="compact"):
     if mode == "detected":      # the encrypted run plus the detector's flags (computed by detect.py, one npz per plant)
         import os
-        path = os.path.join(os.path.dirname(__file__), "det_results", f"{plant}_aero2.npz")
+        path = os.path.join(os.path.dirname(__file__), "det_results", f"{plant}_compact.npz")
         if not os.path.exists(path):
             raise FileNotFoundError(f"{path} is missing: run  python detect.py {plant}  (needs fpylll or blaster)")
-        log = run(plant, "encrypted", scenario, lwe="aero2")
+        log = run(plant, "encrypted", scenario, lwe="compact")
         d = np.load(path)
         log.update(mode="detected", det={k: d[k] for k in d.files})
         return log
@@ -94,7 +94,7 @@ def run(plant, mode, scenario=None, keep_ciphertexts=False, lwe="aero2"):
         y, u, rho = out["y"], out["u"], out["rho_unscaled"] / spec.cs          # residual in output units
     elif mode == "encrypted":
         spec = QuantizedLinear() if plant == "linear" else QuantizedFourTank()
-        spec.lwe = {"aero2": AERO2, "paper": PAPER}[lwe]
+        spec.lwe = {"compact": COMPACT, "paper": PAPER}[lwe]
         if plant == "fourtank":
             spec.offset_h2 = sc.offset_h2
         out = run_encrypted(spec, sc.n, sensor_attack=lambda k: sens.get(k, 0),

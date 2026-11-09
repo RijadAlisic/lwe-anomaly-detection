@@ -47,7 +47,7 @@ The attacker injects the actuator input that keeps y at zero, also cancelling th
 
 ## Encryption and detection
 
-LWE with the AERO2 parameters (v = 64, q = 2^23 + 9, sigma = 50, r = 4096), integer controller evaluated on ciphertexts,
+LWE with the COMPACT parameters (v = 64, q = 2^23 + 9, sigma = 50, r = 4096), integer controller evaluated on ciphertexts,
 0 decryption errors in all runs. Detector per window: kernel lattice of the 192 residual ciphertexts, LLL (blaster),
 6 shortest vectors, chi-square test at alpha = 0.001.
 
@@ -72,4 +72,4 @@ of half the state leaves a residual and the window alarms. A different kick ampl
 ![example](stealth_fig_paper.png)
 
 Limits: attacks whose effect on the output stays inside the deadband are invisible to any residual-based detector.
-Aero2 parameters with LLL are used; the paper's parameters (q = 16381, sigma = 26) need BKZ.
+Compact parameters with LLL are used; the paper's parameters (q = 16381, sigma = 26) need BKZ.
