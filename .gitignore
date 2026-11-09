@@ -3,3 +3,7 @@ __pycache__/
 venv/
 .venv/
 run_out.txt
+four_tank/windows_linear_paper.npz
+four_tank/det_results/
+four_tank/overnight.log
+*.log

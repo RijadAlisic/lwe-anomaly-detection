@@ -59,7 +59,7 @@ def default_scenario(plant):
     return Scenario("fourtank", 1024, 1.0, 1, 0.01, 100, offset_h2=1.0)   # +-1 cm sensor, +-1 V actuator
 
 
-def run(plant, mode, scenario=None):
+def run(plant, mode, scenario=None, keep_ciphertexts=False):
     sc = scenario or default_scenario(plant)
     sens, act = sc.draws()
     if mode == "nominal":
@@ -81,9 +81,13 @@ def run(plant, mode, scenario=None):
         if plant == "fourtank":
             spec.offset_h2 = sc.offset_h2
         out = run_encrypted(spec, sc.n, sensor_attack=lambda k: sens.get(k, 0),
-                            actuator_attack=lambda k: act.get(k, 0) * spec.c ** (k % spec.kp + 1), seed=LWE_SEED[plant])
+                            actuator_attack=lambda k: act.get(k, 0) * spec.c ** (k % spec.kp + 1), seed=LWE_SEED[plant],
+                            keep_ciphertexts=keep_ciphertexts)
         y, u, rho = out["y"], out["u"], out["rho"]
         extra = {k: out[k] for k in ("enc_y", "enc_u", "enc_rho", "q", "dec_errors")}
+        extra["lwe"] = spec.lwe
+        if keep_ciphertexts:
+            extra["res_ct"] = out["res_ct"]
     else:
         raise ValueError(f"unknown mode {mode!r}; available: {MODES}")
     Ts = PLANTS[plant].Ts

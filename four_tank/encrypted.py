@@ -15,7 +15,7 @@ def centered(x, q):
     return np.where(x > q // 2, x - q, x)
 
 
-def run(spec, n_steps, sensor_attack=None, actuator_attack=None, seed=1):
+def run(spec, n_steps, sensor_attack=None, actuator_attack=None, seed=1, keep_ciphertexts=False):
     P = spec.lwe
     L = lwe.LWE(P["v"], P["q"], P["r"], P["sigma"], np.random.default_rng(seed))
     M = {k: np.array(v, dtype=np.int64) for k, v in spec.M.items()}
@@ -25,7 +25,8 @@ def run(spec, n_steps, sensor_attack=None, actuator_attack=None, seed=1):
     X = np.zeros((n, P["v"] + 1), dtype=np.int64)                   # trivial encryption of the reset state
     log = {k: [] for k in ("y", "yq", "u", "rho", "enc_y", "enc_u", "enc_rho")}
     Xp = np.zeros((n, 1), dtype=np.int64)                           # plaintext shadow, only to count decryption errors
-    dec_errors = 0
+    dec_errors, error_steps = 0, []
+    res_ct = []
     for k in range(n_steps):
         kb = k % kp
         if k % P["T"] == 0:
@@ -49,16 +50,24 @@ def run(spec, n_steps, sensor_attack=None, actuator_attack=None, seed=1):
         Ysp = c ** kb * ya
         Up = int((M["C"] @ Xp)[0, 0] + M["D"][0, 0] * Ysp) + (actuator_attack(k) if actuator_attack else 0)
         Rp = c ** (kb + 1) * ya - int((M["Co"] @ Xp)[0, 0] + M["Do"][0, 0] * Ysp)
-        dec_errors += int(L.decrypt(U)[0] != Up or L.decrypt(Rho)[0] != Rp)
+        bad = int(L.decrypt(U)[0] != Up or L.decrypt(Rho)[0] != Rp)
+        dec_errors += bad
+        if bad:
+            error_steps.append(k)
         Xp = M["A"] @ Xp + M["B"] * Ysp
         u = L.decrypt(U)[0] / (c ** (kb + 1) * cu)
         rho = L.decrypt(Rho)[0] / c ** (kb + 1) / cs                # residual in output units
         for key, val in zip(log, (y, yq, u, rho, centered(Ye[:, -1], q)[0], centered(U[:, -1], q)[0],
                                   centered(Rho[:, -1], q)[0])):
             log[key].append(val)
+        if keep_ciphertexts:
+            res_ct.append(Rho[0].copy())                              # full residual ciphertext (P | b)
         X = Xn
         pl.apply(u)
     out = {k: np.array(v) for k, v in log.items()}
     out["q"] = q
+    if keep_ciphertexts:
+        out["res_ct"] = np.array(res_ct)
+    out["error_steps"] = error_steps
     out["dec_errors"] = dec_errors                                   # steps where noise broke the decryption
     return out
