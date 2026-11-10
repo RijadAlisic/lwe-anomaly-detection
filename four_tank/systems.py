@@ -68,7 +68,11 @@ def simulate(system, ctrl, n_steps, sensor_attack=None, actuator_attack=None):
     n = ctrl["A"].shape[0]
     xh = np.zeros((n, 1))
     log = {k: [] for k in ("y", "y_attacked", "u", "u_applied", "yhat", "rho")}
+    if hasattr(system, "h"):
+        log["h"] = []                                     # tank levels [cm], for the four-tank illustration
     for k in range(n_steps):
+        if "h" in log:
+            log["h"].append(system.h.copy())
         y = system.y()
         ya = y + (sensor_attack(k) if sensor_attack else 0.0)
         u = float((ctrl["C"] @ xh)[0, 0])

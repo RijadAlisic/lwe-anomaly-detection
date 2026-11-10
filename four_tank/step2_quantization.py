@@ -25,7 +25,7 @@ def attack_windows(spec, n, s_rng, a_rng, seed=0):
 
 
 def check_against_saved(log):
-    path = os.path.join(os.path.dirname(__file__), "..", "fig7", "windowed_det_data.npz")
+    path = os.path.join(os.path.dirname(__file__), "..", "fig8", "windowed_det_data.npz")
     D = np.load(path)
     m = 1536                                       # first quarter: no attack
     dy = np.abs(log["y"][:m] - np.array(D["y"]).ravel()[:m]).max()

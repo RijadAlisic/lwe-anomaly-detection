@@ -9,3 +9,5 @@ four_tank/overnight.log
 *.log
 paper_notes/
 *.log
+analysis/*.png
+analysis/*.pdf

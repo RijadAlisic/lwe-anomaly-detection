@@ -85,6 +85,7 @@ def run(plant, mode, scenario=None, keep_ciphertexts=False, lwe="compact"):
                        sensor_attack=lambda k: sc.unit_s * sens.get(k, 0),
                        actuator_attack=lambda k: sc.unit_a * act.get(k, 0))
         y, u, rho = out["y"], out["u_applied"], out["rho"]
+        extra = {"h": out["h"]} if "h" in out else {}
     elif mode == "quantized":
         spec = QuantizedLinear() if plant == "linear" else QuantizedFourTank()
         if plant == "fourtank":
@@ -92,6 +93,7 @@ def run(plant, mode, scenario=None, keep_ciphertexts=False, lwe="compact"):
         out = run_quantized(spec, sc.n, sensor_attack=lambda k: sens.get(k, 0),
                             actuator_attack=lambda k: act.get(k, 0) * spec.c ** (k % spec.kp + 1))
         y, u, rho = out["y"], out["u"], out["rho_unscaled"] / spec.cs          # residual in output units
+        extra = {"h": out["h"]} if "h" in out else {}
     elif mode == "encrypted":
         spec = QuantizedLinear() if plant == "linear" else QuantizedFourTank()
         spec.lwe = {"compact": COMPACT, "paper": PAPER}[lwe]
@@ -103,6 +105,8 @@ def run(plant, mode, scenario=None, keep_ciphertexts=False, lwe="compact"):
         y, u, rho = out["y"], out["u"], out["rho"]
         extra = {k: out[k] for k in ("enc_y", "enc_u", "enc_rho", "q", "dec_errors", "timing")}
         extra["lwe"] = spec.lwe
+        if "h" in out:
+            extra["h"] = out["h"]
         if keep_ciphertexts:
             extra["res_ct"] = out["res_ct"]
     else:
@@ -110,5 +114,8 @@ def run(plant, mode, scenario=None, keep_ciphertexts=False, lwe="compact"):
     Ts = PLANTS[plant].Ts
     log = dict(plant=plant, mode=mode, t=np.arange(sc.n) * Ts, y=np.asarray(y), u=np.asarray(u),
                rho=np.asarray(rho), sensor_window=sc.sensor_window, actuator_window=sc.actuator_window, Ts=Ts)
-    log.update(extra if mode == "encrypted" else {})
+    log.update(extra)
+    if "h" in log:                                      # four-tank: equilibrium levels and input for the illustration
+        import plant as _plant
+        log["h0"], log["u0"] = _plant.operating_point()
     return log

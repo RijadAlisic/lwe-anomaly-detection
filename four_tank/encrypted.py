@@ -4,7 +4,7 @@ Sensor encrypts yq, the controller works on ciphertexts only (homomorphic intege
 decrypts the input.  The key is refreshed every T steps (a multiple of the reset period kp).  Attacks act on the
 ciphertexts, with the same integer conventions as quantized.run: the sensor attack adds r*a to the measurement
 ciphertext (a is added to yq), the actuator attack adds r*a to the input ciphertext (a is added to U).  We also log the 'encrypted values' (second component b of each ciphertext, centered
-mod q) next to the plaintext, as in Fig. 7 of the paper.
+mod q) next to the plaintext, as in Fig. 8 of the paper.
 """
 import time
 import numpy as np
@@ -25,6 +25,8 @@ def run(spec, n_steps, sensor_attack=None, actuator_attack=None, seed=1, keep_ci
     n = M["A"].shape[0]
     X = np.zeros((n, P["v"] + 1), dtype=np.int64)                   # trivial encryption of the reset state
     log = {k: [] for k in ("y", "yq", "u", "rho", "enc_y", "enc_u", "enc_rho")}
+    if hasattr(pl, "h"):
+        log["h"] = []                                               # tank levels [cm]
     Xp = np.zeros((n, 1), dtype=np.int64)                           # plaintext shadow, only to count decryption errors
     dec_errors, error_steps = 0, []
     res_ct = []
@@ -36,6 +38,8 @@ def run(spec, n_steps, sensor_attack=None, actuator_attack=None, seed=1, keep_ci
         if kb == 0:
             X = np.zeros_like(X)                                    # periodic reset of the controller state
             Xp = np.zeros_like(Xp)
+        if "h" in log:
+            log["h"].append(pl.h.copy())
         y = pl.y()
         yq = int(np.round(cs * y))
         t0 = time.perf_counter()
@@ -65,8 +69,8 @@ def run(spec, n_steps, sensor_attack=None, actuator_attack=None, seed=1, keep_ci
         u = L.decrypt(U)[0] / (c ** (kb + 1) * cu)
         tm['decrypt'] += time.perf_counter() - t0
         rho = L.decrypt(Rho)[0] / c ** (kb + 1) / cs                # residual in output units
-        for key, val in zip(log, (y, yq, u, rho, centered(Ye[:, -1], q)[0], centered(U[:, -1], q)[0],
-                                  centered(Rho[:, -1], q)[0])):
+        for key, val in zip(("y", "yq", "u", "rho", "enc_y", "enc_u", "enc_rho"),
+                            (y, yq, u, rho, centered(Ye[:, -1], q)[0], centered(U[:, -1], q)[0], centered(Rho[:, -1], q)[0])):
             log[key].append(val)
         if keep_ciphertexts:
             res_ct.append(Rho[0].copy())                              # full residual ciphertext (P | b)

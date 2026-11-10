@@ -51,7 +51,11 @@ def run(spec, n_steps, sensor_attack=None, actuator_attack=None):
     pl = spec.make_plant()
     X = np.zeros((M["A"].shape[0], 1), dtype=np.int64)
     log = {k: [] for k in ("y", "yq", "u", "rho", "Yhat", "rho_unscaled")}
+    if hasattr(pl, "h"):
+        log["h"] = []                                            # tank levels [cm]
     for k in range(n_steps):
+        if "h" in log:
+            log["h"].append(pl.h.copy())
         kb = k % kp
         if kb == 0:
             X = np.zeros_like(X)                                 # periodic reset to xss = 0
@@ -63,7 +67,7 @@ def run(spec, n_steps, sensor_attack=None, actuator_attack=None):
         rho = c ** (kb + 1) * yq - Yhat
         u = U / (c ** (kb + 1) * cu)
         X = M["A"] @ X + M["B"] * Ys
-        for key, val in zip(log, (y, yq, u, rho, Yhat, rho / c ** (kb + 1))):
+        for key, val in zip(("y", "yq", "u", "rho", "Yhat", "rho_unscaled"), (y, yq, u, rho, Yhat, rho / c ** (kb + 1))):
             log[key].append(val)
         pl.apply(u)
     return {k: np.array(v) for k, v in log.items()}

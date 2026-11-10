@@ -73,3 +73,12 @@ of half the state leaves a residual and the window alarms. A different kick ampl
 
 Limits: attacks whose effect on the output stays inside the deadband are invisible to any residual-based detector.
 Compact parameters with LLL are used; the paper's parameters (q = 16381, sigma = 26) need BKZ.
+
+## Systematic sweep of the paper (Section VII, Fig. 9)
+
+The sweep in the paper changes the setting above in two ways. The loop is encrypted with r = 2000 for both sigma = 50 and
+sigma = 75, and the unstable-zero plant uses the lower-gain controller (-1, -2, -1), cu = 5 (found with
+`design_unstable.py`; its encryption-noise gain is 2.4 instead of 8.8, which is what allows r = 2000). The stable-zero
+plant keeps (2, 1, 3), cu = 10. `zero_sweep_fine.py` runs the zero-dynamics attack with the state guess g in a grid and
+50 key seeds per value; `compare_detectors.py` runs the noise injection of length L on the stable-zero plant with
+100 key seeds. See the README for the commands and `compare_fig_columns.py` for the figure.

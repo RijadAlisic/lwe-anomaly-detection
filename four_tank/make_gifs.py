@@ -34,11 +34,69 @@ def shared_limits(plant):
     return lim
 
 
+TANK_H = 30.0                                            # drawn tank height [cm]
+TANK_POS = {3: (0.30, 40.0), 4: (2.90, 40.0), 1: (0.30, 0.0), 2: (2.90, 0.0)}      # lower-left corner of each tank
+TANK_W = 1.40
+
+
+def build_tanks(ax, L):
+    """Four-tank illustration (tanks 3 and 4 above 1 and 2, as in the lab): the water level of each tank, its
+    equilibrium level (dashed) and the pump voltage.  Returns update(n) that draws sample n and the artists it changes."""
+    ax.set_xlim(0, 4.6); ax.set_ylim(-12, 80); ax.axis("off")
+    h0, u0 = L["h0"], float(L["u0"][0])
+    Ts = L["Ts"]; sw, aw = L["sensor_window"], L["actuator_window"]
+    water, texts, frames_ = {}, {}, {}
+    for i, (x, y) in TANK_POS.items():
+        water[i] = plt.Rectangle((x, y), TANK_W, 0.0, facecolor="#6fb4e8", edgecolor="none", zorder=1)
+        ax.add_patch(water[i])
+        frames_[i] = plt.Rectangle((x, y), TANK_W, TANK_H, facecolor="none", edgecolor="#333333", lw=1.6, zorder=3)
+        ax.add_patch(frames_[i])
+        ax.plot([x - 0.06, x + TANK_W + 0.06], [y + h0[i - 1]] * 2, color="#333333", lw=0.8, ls=(0, (3, 2)), zorder=4)
+        ax.text(x + TANK_W / 2, y + TANK_H + 1.6, f"tank {i}" + (" (h2 measured)" if i == 2 else ""), ha="center", va="bottom", fontsize=8, color="#333333")
+        texts[i] = ax.text(x + TANK_W / 2, y + 2.0, "", ha="center", va="bottom", fontsize=8, color="#0b3d63", zorder=5)
+    for xs in (0.3 + TANK_W / 2, 2.9 + TANK_W / 2):                     # drain of tank 3 into 1 and of tank 4 into 2
+        ax.annotate("", xy=(xs, TANK_H + 0.3), xytext=(xs, 40.0), arrowprops=dict(arrowstyle="-|>", color="#555555", lw=1.0))
+    ax.text(2.3, 36.0, "tanks 3, 4 drain into 1, 2", ha="center", va="center", fontsize=6.5, color="#555555")
+    pump = ax.text(1.0, -5.0, "", ha="center", va="center", fontsize=8,
+                   bbox=dict(boxstyle="round,pad=0.35", facecolor="white", edgecolor="#333333", lw=1.2))
+    ax.text(1.0, -9.8, "pump 1: tanks 1, 4", ha="center", va="center", fontsize=6.5, color="#555555")
+    ax.text(3.6, -5.0, "pump 2: const.", ha="center", va="center", fontsize=7, color="#555555")
+    ax.text(3.6, -9.8, "tanks 2, 3", ha="center", va="center", fontsize=6.5, color="#555555")
+    note = ax.text(2.3, 77.5, "dashed line: equilibrium level", ha="center", va="center", fontsize=6.5, color="#555555")
+    stat = ax.text(0.02, 0.5, "", transform=ax.transAxes)                # placeholder, keeps the artist list uniform
+
+    def update(n):
+        k = n - 1
+        for i in water:
+            water[i].set_height(float(L["h"][k][i - 1]))
+            texts[i].set_text(f"{L['h'][k][i - 1]:.1f} cm")
+        pump.set_text(f"{u0 + L['u'][k]:.2f} V")
+        sensor_on = sw[0] <= k < sw[1] + 1; act_on = aw[0] <= k < aw[1] + 1
+        frames_[2].set_edgecolor("#e69f00" if sensor_on else "#333333"); frames_[2].set_linewidth(3.0 if sensor_on else 1.6)
+        pump.get_bbox_patch().set_edgecolor("#d55e00" if act_on else "#333333")
+        pump.get_bbox_patch().set_linewidth(3.0 if act_on else 1.2)
+        note.set_text("sensor attack on h2" if sensor_on else "actuator attack on u1" if act_on else "dashed line: equilibrium level")
+        note.set_color("#a06a00" if sensor_on else "#a03a00" if act_on else "#555555")
+        return list(water.values()) + list(texts.values()) + list(frames_.values()) + [pump, note, stat]
+    return update
+
+
 def make_gif(plant, mode, number, lim, frames, outdir, seconds=10.0, workers=1, time_scale=1.0):
     L = ex.run(plant, mode)
     t, Ts = L["t"], L["Ts"]
     detected = mode == "detected"
-    if detected:                                         # a fourth row for the detection flags
+    tanks = plant == "fourtank" and "h" in L             # the four-tank gifs get a tank illustration on the left
+    if tanks:
+        fig = plt.figure(figsize=(9.6, 6.4 if detected else 5.6))
+        nrow = 4 if detected else 3
+        gs = fig.add_gridspec(nrow, 2, width_ratios=[1.0, 2.4], height_ratios=[3, 3, 3, 1.1][:nrow], wspace=0.40)
+        axes = [fig.add_subplot(gs[0, 1])]
+        axes += [fig.add_subplot(gs[i, 1], sharex=axes[0]) for i in range(1, nrow)]
+        for a in axes[:-1]:
+            a.tick_params(labelbottom=False)
+        tank_update = build_tanks(fig.add_subplot(gs[:, 0]), L)
+        sax, axes = (axes[3], axes[:3]) if detected else (None, axes)
+    elif detected:                                       # a fourth row for the detection flags
         fig, axes = plt.subplots(4, 1, figsize=(6.4, 6.4), sharex=True, gridspec_kw=dict(height_ratios=[3, 3, 3, 1.1]))
         sax, axes = axes[3], axes[:3]
     else:
@@ -83,14 +141,17 @@ def make_gif(plant, mode, number, lim, frames, outdir, seconds=10.0, workers=1, 
         axes[2].set_xlabel(TIME[plant])
     if encrypted:                                       # what one sample costs, for this parameter set
         tm = L["timing"]
-        fig.text(0.13, 0.012, f"LWE n=64, q=2^23+9, sigma=50 | per sample (Python, 1 core): encrypt {tm['encrypt']:.2f} ms, "
+        fig.text(0.02 if tanks else 0.13, 0.012, f"LWE n=64, q=2^23+9, sigma=50 | per sample (Python, 1 core): encrypt {tm['encrypt']:.2f} ms, "
                  f"control {tm['evaluate']:.2f} ms, decrypt {tm['decrypt']:.2f} ms", fontsize=6, color="#555555")
     if detected:
-        fig.text(0.13, 0.038, f"detection per window of {int(d['T'])} samples (kernel lattice + LLL, Python, 1 core): "
+        fig.text(0.02 if tanks else 0.13, 0.038, f"detection per window of {int(d['T'])} samples (kernel lattice + LLL, Python, 1 core): "
                  f"{np.mean(d['seconds']):.0f} s on average, {int(d['K'])}-vector chi-square test at alpha = {float(d['alpha']):g}; "
                  f"plant and {workers} detector worker(s) in parallel, newest window first",
                  fontsize=6, color="#555555")
-    fig.subplots_adjust(left=0.13, right=0.86, top=0.93, bottom=0.17 if detected else 0.13, hspace=0.12)
+    if tanks:
+        fig.subplots_adjust(left=0.01, right=0.90, top=0.93, bottom=0.17 if detected else 0.13, hspace=0.12)
+    else:
+        fig.subplots_adjust(left=0.13, right=0.86, top=0.93, bottom=0.17 if detected else 0.13, hspace=0.12)
     idx = np.unique(np.linspace(1, len(t), frames).astype(int))
     if detected:
         # one common simulation clock: the plant runs at the sample rate, window w is available when its last
@@ -122,7 +183,8 @@ def make_gif(plant, mode, number, lim, frames, outdir, seconds=10.0, workers=1, 
             ln.set_data(t[:n], L[key][:n]); dot.set_data([t[n - 1]], [L[key][n - 1]])
         for eln, ek in enc_lines:
             eln.set_data(t[:n], L[ek][:n])
-        return [x for ln, dot, _ in lines for x in (ln, dot)] + [eln for eln, _ in enc_lines]
+        extra_artists = tank_update(n) if tanks else []
+        return [x for ln, dot, _ in lines for x in (ln, dot)] + [eln for eln, _ in enc_lines] + extra_artists
 
     anim = FuncAnimation(fig, draw, frames=seq, blit=not detected)
     path = os.path.join(outdir, f"{plant}_{number}_{mode}.gif")
@@ -142,9 +204,12 @@ if __name__ == "__main__":
     ap.add_argument("--time-scale", type=float, default=1.0,
                     help="simulation seconds per measured detector second (1 = as measured)")
     ap.add_argument("--only", default=None, help="render only this mode (e.g. detected)")
+    ap.add_argument("--plant", default=None, choices=("linear", "fourtank"), help="render only this plant")
     a = ap.parse_args()
     os.makedirs("gifs", exist_ok=True)
     for plant in ("linear", "fourtank"):
+        if a.plant and plant != a.plant:
+            continue
         lim = shared_limits(plant)
         for number, mode in enumerate(ex.MODES, start=1):
             if a.only and mode != a.only:

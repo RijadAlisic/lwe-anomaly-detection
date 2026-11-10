@@ -1,5 +1,5 @@
 """Single-column figure for the paper (unstable zero): output and hidden state in one panel, residual below.
-Style as in fig7/make_fig7.py (serif font, Okabe-Ito colors).  Reads det_results/stealth_example.npz.
+Style as in fig8/make_fig8.py (serif font, Okabe-Ito colors).  Reads det_results/stealth_example.npz.
 usage: python stealth_fig_paper.py [width_in height_in out.pdf]"""
 import sys
 import numpy as np
@@ -35,17 +35,19 @@ for name, col, lab in cases:
     flag = bool(D[f"unstable_{name}_flag"])
     handles.append(Line2D([0], [0], color=col, lw=1.2, label=f"{lab}: {'Alarm' if flag else 'No Alarm'}"))
 handles += [Line2D([0], [0], color="k", lw=0.9, label=r"Output $y$ (solid)"),
-            Line2D([0], [0], color="k", lw=0.9, ls="--", label=r"Hidden State $x_2$ (dashed)")]
+            Line2D([0], [0], color="k", lw=0.9, ls="--", label=r"Hidden State $x_2$ (dashed)"),
+            Line2D([0], [0], color=C_ENC, lw=2.0, alpha=0.5, label="Encrypted Residual (gray)"),
+            Line2D([0], [0], color="k", lw=0.9, label=r"Plaintext Residual $\rho_k$ (colored)")]
 ax[0].set_ylabel(r"$y$, $x_2$")
 ax[0].set_ylim(-3, 5.4)
 
 ax[1].plot(t, D["unstable_matched_enc"][lo:hi], color=C_ENC, lw=0.5, alpha=0.4, drawstyle="steps-post")
 q = float(D["unstable_matched_q"]); ax[1].set_ylim(-q / 2, q / 2); ax[1].set_yticks([])
-ax[1].set_ylabel("Enc. Residual", color=C_ENC)
+ax[1].set_ylabel("Encrypted", color=C_ENC)
 pax = ax[1].twinx(); pax.set_zorder(ax[1].get_zorder() + 1); pax.patch.set_visible(False)
 for name, col, lab in cases:
     pax.plot(t, D[f"unstable_{name}_rho"][lo:hi], color=col, lw=0.9, drawstyle="steps-post")
-pax.set_ylim(-3.1, 1.6); pax.set_yticks([-1, 0, 1]); pax.set_ylabel(r"Residual $\rho_k$")
+pax.set_ylim(-3.1, 1.6); pax.set_yticks([-1, 0, 1]); pax.set_ylabel(r"Plaintext $\rho_k$")
 ax[1].set_xlabel("Time Since Disturbance [Steps]", labelpad=1)
 pax.legend(handles=handles, loc="lower right", frameon=True, framealpha=0.9, borderpad=0.3, handlelength=1.6,
            labelspacing=0.2, edgecolor="none")

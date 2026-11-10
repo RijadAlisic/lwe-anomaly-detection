@@ -1,6 +1,6 @@
 """Exact Type II errors of the detector's test and of the attacker's (opposite) test.
 
-Setting (Section V of the paper): a short filtering vector d turns the encrypted residual into
+Setting (Section VII of the paper): a short filtering vector d turns the encrypted residual into
 X = d^T e mod q, with e Gaussian.  Under the null hypothesis X is a wrapped (discrete) Gaussian on
 Z_q with standard deviation s = sigma*||d||_2 = q/(2z), where z = q/(2 sigma ||d||_2).
 
@@ -13,16 +13,16 @@ import numpy as np
 
 Q = 16381
 ZS = [1.145, 1.260, 1.400, 1.575, 1.800, 2.100]
-ALPHAS = [0.10, 0.20, 0.30, 0.40]
+ALPHAS = [0.10, 0.20, 0.30, 0.40, 0.50]
 
-# Table I of the paper (detector, attacker in parentheses), Type II error in percent.
+# Table I of the paper (detector, attacker in parentheses), Type II error in percent; columns alpha = 10, ..., 50 %.
 PAPER = {
-    1.145: [(89.5, 89.5), (79.1, 79.1), (68.8, 68.8), (58.6, 58.6)],
-    1.260: [(89.0, 89.1), (78.2, 78.3), (67.6, 67.7), (57.2, 57.3)],
-    1.400: [(88.1, 88.4), (76.5, 77.0), (65.4, 65.8), (54.9, 55.1)],
-    1.575: [(86.4, 87.3), (73.6, 74.9), (61.9, 62.9), (51.3, 51.7)],
-    1.800: [(83.0, 85.7), (68.4, 71.8), (56.4, 58.7), (46.2, 46.7)],
-    2.100: [(76.2, 83.4), (60.6, 67.4), (49.2, 52.8), (40.0, 40.0)],
+    1.145: [(89.5, 89.5), (79.1, 79.1), (68.8, 68.8), (58.6, 58.6), (48.5, 48.5)],
+    1.260: [(89.0, 89.1), (78.2, 78.3), (67.6, 67.7), (57.2, 57.3), (47.2, 47.2)],
+    1.400: [(88.1, 88.4), (76.6, 77.0), (65.5, 65.8), (54.9, 55.1), (44.9, 44.9)],
+    1.575: [(86.4, 87.3), (73.6, 74.9), (61.9, 62.9), (51.3, 51.7), (41.6, 41.3)],
+    1.800: [(83.0, 85.7), (68.5, 71.8), (56.4, 58.7), (46.2, 46.8), (37.2, 36.1)],
+    2.100: [(76.2, 83.4), (60.6, 67.4), (49.2, 52.8), (40.0, 40.0), (32.1, 29.2)],
 }
 
 
