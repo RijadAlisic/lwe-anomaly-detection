@@ -85,6 +85,34 @@ never waits; the detector runs beside it, newest window first, using the measure
 2 s). Window lengths are 192 s (linear) and 384 s (four-tank), so the flags appear about 2 s after each window closes.
 `make_gifs.py --plant fourtank --time-scale S --workers N` rescales the detector time or the number of detector workers.
 
+### A detector that falls behind
+
+With harder parameters the detector can be slower than the windows arrive. `detect_bkz.py 400 60` runs BKZ-60 on all 36 key
+epochs of the four-tank loop at sigma = 400 (r = 40 sigma): about 250 s per window against a window length of 384 s; 11 of the 16
+attacked windows alarm and 2 of the 20 calm ones do (`det_results/fourtank_bkz60.npz`). The two gifs below replay these measured
+times on a detector that is 3 times slower (for example a lab laptop; stated on the gif). The detector takes the newest window first;
+windows it cannot start in time are hatched (missed) and are checked after the run ends, oldest first.
+
+| One detector computer | Two detector computers |
+|---|---|
+| <img src="four_tank/gifs/fourtank_5_overloaded.gif" width="430"> | <img src="four_tank/gifs/fourtank_6_two_detectors.gif" width="430"> |
+
+With one computer 16 of 36 windows are missed during the run and the last verdict arrives 27,000 s in, twice the run length.
+With two, each still takes its time per window, but the windows are independent, so nothing is missed and the last verdict comes
+about 460 s after the run ends. The parallelism is across windows, not inside a reduction: `blaster` was run with `cores=1`, and
+more cores per reduction did not help in a quick test. Commands:
+
+```bash
+cd four_tank
+python detect_bkz.py 400 60 7           # BKZ-60 on all windows, 7 windows at a time
+python make_gifs.py --plant fourtank --only detected --sigma 400 --det-tag bkz60 --drop --catchup --time-scale 3 --name fourtank_5_overloaded.gif
+python make_gifs.py --plant fourtank --only detected --sigma 400 --det-tag bkz60 --drop --catchup --time-scale 3 --workers 2 --name fourtank_6_two_detectors.gif
+```
+
+`analysis/lwe_security.py` gives the bit security of a parameter set (textbook primal and dual estimates, not a security claim). At 192
+samples per key epoch the demo parameters are about 39 bits for every sigma tried up to 600; (v, q, sigma, r) = (96, 2^23 + 9, 5000, 100000)
+gives about 82 bits and decrypts, but no detector can work on it.
+
 ## The comparison experiment (Section VII, Fig. 9)
 
 A systematic sweep of three attacks of varying stealth on one plant, against the test on the decrypted residual, which

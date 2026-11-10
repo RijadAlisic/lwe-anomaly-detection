@@ -66,13 +66,14 @@ def default_scenario(plant):
     return Scenario("fourtank", 36 * 192, 1 / 5.0, 5, 1 / 10.0, 10, offset_h2=1.0, n_attack=32 * 192)  # +-1 cm, +-1 V
 
 
-def run(plant, mode, scenario=None, keep_ciphertexts=False, lwe="compact"):
+def run(plant, mode, scenario=None, keep_ciphertexts=False, lwe="compact", det_tag="compact"):
+    """lwe: "compact", "paper" or a dict of LWE parameters; det_tag: which det_results/<plant>_<tag>.npz holds the detector's flags."""
     if mode == "detected":      # the encrypted run plus the detector's flags (computed by detect.py, one npz per plant)
         import os
-        path = os.path.join(os.path.dirname(__file__), "det_results", f"{plant}_compact.npz")
+        path = os.path.join(os.path.dirname(__file__), "det_results", f"{plant}_{det_tag}.npz")
         if not os.path.exists(path):
             raise FileNotFoundError(f"{path} is missing: run  python detect.py {plant}  (needs fpylll or blaster)")
-        log = run(plant, "encrypted", scenario, lwe="compact")
+        log = run(plant, "encrypted", scenario, lwe=lwe)
         d = np.load(path)
         log.update(mode="detected", det={k: d[k] for k in d.files})
         return log
@@ -96,7 +97,7 @@ def run(plant, mode, scenario=None, keep_ciphertexts=False, lwe="compact"):
         extra = {"h": out["h"]} if "h" in out else {}
     elif mode == "encrypted":
         spec = QuantizedLinear() if plant == "linear" else QuantizedFourTank()
-        spec.lwe = {"compact": COMPACT, "paper": PAPER}[lwe]
+        spec.lwe = lwe if isinstance(lwe, dict) else {"compact": COMPACT, "paper": PAPER}[lwe]
         if plant == "fourtank":
             spec.offset_h2 = sc.offset_h2
         out = run_encrypted(spec, sc.n, sensor_attack=lambda k: sens.get(k, 0),

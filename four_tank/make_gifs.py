@@ -127,8 +127,9 @@ def build_diagram(ax, L, mode):
     return update
 
 
-def make_gif(plant, mode, number, lim, frames, outdir, seconds=10.0, workers=1, time_scale=1.0):
-    L = ex.run(plant, mode)
+def make_gif(plant, mode, number, lim, frames, outdir, seconds=10.0, workers=1, time_scale=1.0,
+             lwe="compact", det_tag="compact", drop=False, name=None, catchup=False):
+    L = ex.run(plant, mode, lwe=lwe, det_tag=det_tag)
     t, Ts = L["t"], L["Ts"]
     detected = mode == "detected"
     tanks = plant == "fourtank" and "h" in L             # the four-tank gifs get a tank illustration on the left
@@ -185,17 +186,26 @@ def make_gif(plant, mode, number, lim, frames, outdir, seconds=10.0, workers=1, 
         sax.text(1.01, 0.72, "alarm", transform=sax.transAxes, color="#d55e00", fontsize=8, va="center")
         sax.text(1.01, 0.28, "no alarm", transform=sax.transAxes, color="#009e73", fontsize=8, va="center")
         sax.text(1.01, 0.5, "computing", transform=sax.transAxes, color="#a08c00", fontsize=8, va="center")
+        if drop:
+            sax.text(1.01, 0.06, "missed", transform=sax.transAxes, color="#555555", fontsize=8, va="center")
     else:
         axes[2].set_xlabel(TIME[plant])
     if encrypted:                                       # what one sample costs, for this parameter set
         tm = L["timing"]
-        fig.text(0.02 if tanks else 0.13, 0.012, f"LWE n=64, q=2^23+9, sigma=50 | per sample (Python, 1 core): encrypt {tm['encrypt']:.2f} ms, "
+        fig.text(0.02 if tanks else 0.13, 0.012, f"LWE n={L['lwe']['v']}, q=2^23+9, sigma={L['lwe']['sigma']:g}, r={L['lwe']['r']} | per sample (Python, 1 core): encrypt {tm['encrypt']:.2f} ms, "
                  f"control {tm['evaluate']:.2f} ms, decrypt {tm['decrypt']:.2f} ms", fontsize=6, color="#555555")
     if detected:
-        fig.text(0.02 if tanks else 0.13, 0.038, f"detection per window of {int(d['T'])} samples (kernel lattice + LLL, Python, 1 core): "
+        fig.text(0.02 if tanks else 0.13, 0.038, f"detection per window of {int(d['T'])} samples ({str(d['method']) if 'method' in d else 'kernel lattice + LLL'}, Python, 1 core): "
                  f"{np.mean(d['seconds']):.0f} s on average, {int(d['K'])}-vector chi-square test at alpha = {float(d['alpha']):g}; "
                  f"plant and {workers} detector worker(s) in parallel, newest window first",
                  fontsize=6, color="#555555")
+    if detected and tanks and (time_scale != 1 or drop):
+        note = []
+        if time_scale != 1:
+            note.append(f"detector time x{time_scale:g} (slower machine)")
+        if drop:
+            note.append("skipped windows are checked after the run" if catchup else "windows it cannot start in time are missed")
+        fig.text(0.02, 0.064, "; ".join(note), fontsize=6, color="#a03a00")
     if tanks:
         fig.subplots_adjust(left=0.01, right=0.90, top=0.93, bottom=0.17 if detected else 0.13, hspace=0.12)
     else:
@@ -205,9 +215,9 @@ def make_gif(plant, mode, number, lim, frames, outdir, seconds=10.0, workers=1, 
         # one common simulation clock: the plant runs at the sample rate, window w is available when its last
         # sample has arrived, the detector workers start and finish at the times given by replay.schedule
         Tn = int(d["T"]); t_run = len(t) * Ts
-        sch = replay.schedule((np.arange(nw) + 1) * Tn * Ts, d["seconds"], t_run, workers, time_scale)
+        sch = replay.schedule((np.arange(nw) + 1) * Tn * Ts, d["seconds"], t_run, workers, time_scale, drop=drop, catchup=catchup)
         dt = t_run / len(idx)
-        taus = np.arange(1, int(np.ceil(max(t_run, sch["finish"].max()) / dt)) + 1) * dt
+        taus = np.arange(1, int(np.ceil(max(t_run, np.nanmax(sch["finish"])) / dt)) + 1) * dt
         seq = [float(x) for x in taus] + [float(taus[-1])] * 15
     else:
         seq = [int(i) for i in idx]
@@ -217,10 +227,13 @@ def make_gif(plant, mode, number, lim, frames, outdir, seconds=10.0, workers=1, 
         if detected:
             n = max(1, min(len(t), int(f / Ts)))
             for w in range(nw):
+                patches[w].set_hatch(None); patches[w].set_edgecolor("white")
                 if f >= sch["finish"][w]:
                     c = "#d55e00" if d["flag_chi"][w] else "#009e73"
                 elif f >= sch["start"][w]:
                     c = "#f0e442"
+                elif drop and sch["missed"][w] and f >= sch["missed_at"][w]:
+                    c = "#ffffff"; patches[w].set_hatch("xxx"); patches[w].set_edgecolor("#b0b0b0")
                 elif f >= sch["avail"][w]:
                     c = "#c8c8c8"
                 else:
@@ -245,12 +258,12 @@ def make_gif(plant, mode, number, lim, frames, outdir, seconds=10.0, workers=1, 
         return [x for ln, dot, _ in lines for x in (ln, dot)] + [eln for eln, _ in enc_lines] + extra_artists
 
     anim = FuncAnimation(fig, draw, frames=seq, blit=not detected)
-    path = os.path.join(outdir, f"{plant}_{number}_{mode}.gif")
+    path = os.path.join(outdir, name or f"{plant}_{number}_{mode}.gif")
     anim.save(path, writer=PillowWriter(fps=len(idx) / seconds))
     if detected:
         lat = sch["finish"] - sch["avail"]
-        print(f"  detector latency after the window closes: mean {lat.mean():.1f} s, max {lat.max():.1f} s (simulation seconds); "
-              f"last flag at {sch['finish'].max():.0f} s, run ends at {t_run:.0f} s")
+        print(f"  detector latency after the window closes: mean {np.nanmean(lat):.1f} s, max {np.nanmax(lat):.1f} s (simulation seconds); "
+              f"last flag at {np.nanmax(sch['finish']):.0f} s, run ends at {t_run:.0f} s; missed windows: {int(sch['missed'].sum())} of {nw}")
     plt.close(fig)
     return path
 
@@ -263,6 +276,11 @@ if __name__ == "__main__":
                     help="simulation seconds per measured detector second (1 = as measured)")
     ap.add_argument("--only", default=None, help="render only this mode (e.g. detected)")
     ap.add_argument("--plant", default=None, choices=("linear", "fourtank"), help="render only this plant")
+    ap.add_argument("--sigma", type=float, default=None, help="LWE noise for the encrypted and detected gifs (r = 40 sigma)")
+    ap.add_argument("--det-tag", default="compact", help="use det_results/<plant>_<tag>.npz for the detected gif")
+    ap.add_argument("--drop", action="store_true", help="live detector: windows it cannot start in time are missed, no catching up")
+    ap.add_argument("--catchup", action="store_true", help="with --drop: the detector checks the missed windows after the run ends")
+    ap.add_argument("--name", default=None, help="file name of the gif (with --only)")
     a = ap.parse_args()
     os.makedirs("gifs", exist_ok=True)
     for plant in ("linear", "fourtank"):
@@ -272,5 +290,8 @@ if __name__ == "__main__":
         for number, mode in enumerate(ex.MODES, start=1):
             if a.only and mode != a.only:
                 continue
-            p = make_gif(plant, mode, number, lim, a.frames, "gifs", a.seconds, a.workers, a.time_scale)
+            from quantized import COMPACT
+            lw = dict(COMPACT, sigma=a.sigma, r=int(round(40 * a.sigma))) if a.sigma else "compact"
+            p = make_gif(plant, mode, number, lim, a.frames, "gifs", a.seconds, a.workers, a.time_scale,
+                         lwe=lw, det_tag=a.det_tag, drop=a.drop, name=a.name, catchup=a.catchup)
             print(p, f"{os.path.getsize(p) / 1e3:.0f} kB")
