@@ -18,6 +18,7 @@ verdict per key epoch filling in below.
 | `four_tank/` | staged simulation of two plants (nominal, quantized, encrypted, detected), the stealthy-attack study, and the comparison experiment of Section VII |
 | `analysis/` | exact Type II errors of the detector's test and of the attacker's test (Table I), their crossovers, and the BKZ block size for a target vector length |
 | `fig8/` | regenerates the numerical-results figure of the paper (Fig. 8) from the saved run |
+| `aero2_demo/` | the live hardware demo of the talks: encrypted LQI control of a Quanser Aero 2 with live lattice-based anomaly detection |
 
 ## From the paper to the code
 
@@ -107,6 +108,14 @@ The detector uses only LLL, which gives filtering vectors of norm about 7.5e3 (r
 heuristic predicts vectors of about 680. `analysis/bkz_cost.py` gives the BKZ block size for a target length: kappa = 80 would give
 about 1.4e3 at a cost of about 2^23 per call, and reaching the Gaussian heuristic requires kappa close to the number of samples (192),
 at a cost of about 2^55.
+
+## Aero 2 hardware demo
+
+`aero2_demo/` is the code of the live demonstration shown in the talks (IFAC World Congress, Busan; MIT LIDS): a pitch/yaw
+LQI controller for the Quanser Aero 2 that runs entirely on LWE ciphertexts, with a background lattice reduction (BLASTER/LLL)
+over a sliding window of ciphertexts as the live detector and periodic key rotation. It needs the Quanser hardware SDK and
+an Aero 2, so unlike the rest of the repository it cannot be run without the hardware. See `aero2_demo/README.md` for the
+modes (`noise_cal`, `control_detect`, `both`), the requirements, and the optional TCP bridge for split-process setups.
 
 ## Stealthy attacks
 
