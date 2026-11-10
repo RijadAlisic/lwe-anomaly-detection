@@ -4,11 +4,19 @@ Code for the paper *Anomaly Detection with LWE Encrypted Control* (Alisic, Kim, 
 
 ## 1. A practical deployment example: the four-tank process
 
-The level of tank 2 is measured and encrypted at the plant. A **controller computer** works on the ciphertexts and sends an encrypted
-command back to pump 1, where it is decrypted. A **detector computer**, which never sees the key, reads the same ciphertexts and the
-controller's encrypted prediction and gives a verdict per window of 192 samples. Sensor and actuator attacks hit the two links.
+In this example we consider a feedback controller of a four-tank system, but we restrict ourselves to the SISO system where Pump 1
+controls the level of Tank 2 (Pump 2 is fixed at steady state).
+
+The system is controlled over homomorphically encrypted signals (using the LWE scheme).
+
+We consider a scenario where an attacker (a) injects random noise into the sensor signal, and (b) injects random noise into the
+actuator signal.
 
 <p align="center"><img src="four_tank/gifs/fourtank_4_detected.gif" width="860" alt="Four-tank process with controller and detector computers"></p>
+
+In gray one can see the encrypted signal, and the signal in blue is the plaintext signal (if no encryption was applied). The two attack
+windows are colored in yellow and orange. For these (relatively weak) encryption parameters, the detector performs detection roughly in
+real time.
 
 **A detector that falls behind.** With harder encryption parameters (sigma = 400) a window takes about 250 s to reduce (BKZ-60), against
 a window length of 384 s. On a detector computer three times slower, windows arrive faster than they are checked: the detector takes the
