@@ -146,8 +146,20 @@ counts them (`dec_errors`). **No security level is claimed for `COMPACT` or the 
 the ciphertexts and `overnight_detection.py` reduces them window by window (resumable); it is provided here and its
 results are not.
 
-`sigma_sweep.py` and `bkz_probe.py` try larger noise on single four-tank windows (sigma = 200: LLL misses the attack and
-BKZ-40 recovers it in about 4 s; at sigma = 400 to 1600, BKZ-50 is no longer enough). These are probes, not a study.
+`sigma_sweep.py` and `bkz_probe.py` try larger noise on single four-tank windows. `bkz_sigma_sweep.py SIGMA` is the larger
+version: four-tank loop with r = 40 sigma, 8 windows with a sensor attack and 8 calm windows per sigma, each reduced with LLL,
+BKZ-40 and BKZ-50 (blaster, one core), 6-vector test at alpha = 1e-3. Alarms in the attacked windows (false alarms in the calm ones were 0/8 everywhere), mean time per window:
+
+| sigma | LLL | BKZ-40 | BKZ-50 |
+|---|---|---|---|
+| 100 | 5/8, 4 s | 8/8, 17 s | 8/8, 27 s |
+| 150 to 200 | 0/8, 4 s | 8/8, 17 s | 8/8, 28 s |
+| 300 | 0/8 | 8/8 | 7/8 |
+| 400 | 0/8 | 2/8 | 5/8 |
+| 600 | 0/8 | 0/8 | 0/8 |
+
+So for sigma between 150 and 300, LLL fails and BKZ-40 is needed and sufficient, at about 17 s per window against a window length of 384 s.
+Results are in `det_results/bkz_sigma_sweep_*.json`. BKZ-30 in blaster returned the input basis unchanged, so BKZ-40 is the smallest block size tested.
 
 ## Sanity checks
 
