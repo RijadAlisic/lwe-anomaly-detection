@@ -74,7 +74,7 @@ of half the state leaves a residual and the window alarms. A different kick ampl
 Limits: attacks whose effect on the output stays inside the deadband are invisible to any residual-based detector.
 Compact parameters with LLL are used; the paper's parameters (q = 16381, sigma = 26) need BKZ.
 
-## Systematic sweep of the paper (Section VII, Fig. 9)
+## Systematic sweep of the paper (Section VII, Fig. 8)
 
 The sweep in the paper changes the setting above in two ways. The loop is encrypted with r = 2000 for both sigma = 50 and
 sigma = 75, and the unstable-zero plant uses the lower-gain controller (-1, -2, -1), cu = 5 (found with

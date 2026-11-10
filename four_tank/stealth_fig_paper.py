@@ -1,5 +1,5 @@
 """Single-column figure for the paper (unstable zero): output and hidden state in one panel, residual below.
-Style as in fig8/make_fig8.py (serif font, Okabe-Ito colors).  Reads det_results/stealth_example.npz.
+Style as in fig7/make_fig7.py (serif font, Okabe-Ito colors).  Reads det_results/stealth_example.npz.
 usage: python stealth_fig_paper.py [width_in height_in out.pdf]"""
 import sys
 import numpy as np

@@ -17,7 +17,7 @@ verdict per key epoch filling in below.
 |---|---|
 | `four_tank/` | staged simulation of two plants (nominal, quantized, encrypted, detected), the stealthy-attack study, and the comparison experiment of Section VII |
 | `analysis/` | exact Type II errors of the detector's test and of the attacker's test (Table I), their crossovers, and the BKZ block size for a target vector length |
-| `fig8/` | regenerates the numerical-results figure of the paper (Fig. 8) from the saved run |
+| `fig7/` | regenerates the numerical-results figure of the paper (Fig. 7) from the saved run |
 | `aero2_demo/` | the live hardware demo of the talks: encrypted LQI control of a Quanser Aero 2 with live lattice-based anomaly detection |
 
 ## From the paper to the code
@@ -25,8 +25,8 @@ verdict per key epoch filling in below.
 | Paper | What | Command (from the repository root) |
 |---|---|---|
 | Table I | Type II error of the detector and, in parentheses, of the attacker's test | `python analysis/type2_table.py` |
-| Fig. 8 | detection on ciphertexts, 6-vector test | `cd fig8 && python make_fig8.py 3.5 3.5 out.pdf` |
-| Fig. 9 | alarms against the number of nonzero residuals, three attacks, sigma = 50 and 75 | `cd four_tank && python compare_fig_columns.py` (from the saved sweeps) |
+| Fig. 7 | detection on ciphertexts, 6-vector test | `cd fig7 && python make_fig7.py 3.5 3.5 out.pdf` |
+| Fig. 8 | alarms against the number of nonzero residuals, three attacks, sigma = 50 and 75 | `cd four_tank && python compare_fig_columns.py` (from the saved sweeps) |
 | Section VII, BKZ paragraph | block size and cost for a target vector length | `python analysis/bkz_cost.py` |
 | Table I discussion | Type II error against alpha and sigma-tilde, crossover of detector and attacker | `cd analysis && python beta_vs_alpha.py` (also `beta_vs_sigma.py`, `alpha_plus_beta.py`) |
 
@@ -36,7 +36,7 @@ verdict per key epoch filling in below.
 pip install -r requirements.txt
 python analysis/type2_table.py                     # Table I (matches the paper within 0.05 percentage points)
 python analysis/bkz_cost.py                        # kappa = 80 gives ||d|| of about 1.4e3 at a cost of 2^23 per call
-cd four_tank && python compare_fig_columns.py      # Fig. 9 from the saved sweeps (a few seconds)
+cd four_tank && python compare_fig_columns.py      # Fig. 8 from the saved sweeps (a few seconds)
 python make_gifs.py                                # the gifs below (needs the saved det_results, a few minutes)
 ```
 
@@ -77,7 +77,7 @@ signal, and in the last stage it also runs the key-less detector, whose lamp sho
 measurement and control arrows turn orange and red while the sensor or the actuator is attacked. The diagram follows the stage:
 no encryption in stages 1 and 2, ciphertexts from stage 3, detector from stage 4.
 
-In the encrypted gifs the gray background is the second ciphertext component (centered modulo q), as in Fig. 8 of the
+In the encrypted gifs the gray background is the second ciphertext component (centered modulo q), as in Fig. 7 of the
 paper, and the footer gives the time per sample for encryption, homomorphic control and decryption (about 0.12, 0.09 and
 0.07 ms in Python on one core). In the detected gifs a window is gray until its last sample has arrived, yellow while
 the detector works on it, and green (no alarm) or red (alarm) afterwards. The plant runs at its sampling rate and
@@ -113,7 +113,7 @@ python make_gifs.py --plant fourtank --only detected --sigma 400 --det-tag bkz60
 samples per key epoch the demo parameters are about 39 bits for every sigma tried up to 600; (v, q, sigma, r) = (96, 2^23 + 9, 5000, 100000)
 gives about 82 bits and decrypts, but no detector can work on it.
 
-## The comparison experiment (Section VII, Fig. 9)
+## The comparison experiment (Section VII, Fig. 8)
 
 A systematic sweep of three attacks of varying stealth on one plant, against the test on the decrypted residual, which
 alarms whenever the residual is nonzero (the nominal residual is exactly zero here). The plant is the linear plant of the
@@ -164,8 +164,8 @@ the hidden state grows. With a wrong guess the residual is nonzero and the detec
 | Preset | v | q | sigma | r | Used for |
 |---|---|---|---|---|---|
 | `COMPACT` | 64 | 2^23 + 9 | 50 | 4096 | all gifs and `stealth_sweep.py` (r chosen for this q) |
-| sweep | 64 | 2^23 + 9 | 50 and 75 | 2000 | the comparison experiment (Fig. 9), lower-gain controllers |
-| `PAPER` | 64 | 16381 | 26 | 400 | the paper's example in Fig. 8; `export_windows.py` and `overnight_detection.py` |
+| sweep | 64 | 2^23 + 9 | 50 and 75 | 2000 | the comparison experiment (Fig. 8), lower-gain controllers |
+| `PAPER` | 64 | 16381 | 26 | 400 | the paper's example in Fig. 7; `export_windows.py` and `overnight_detection.py` |
 
 With `COMPACT` there are no decryption failures. With `PAPER` the noise reaching the controller input has standard
 deviation about 58 against the limit r/2 = 200, so decryption fails in a few steps of most 6144-step runs; `encrypted.run`
@@ -201,10 +201,10 @@ signals, which show where wrap-around sets in), `diagnose_vectors.py`, `zero_nz_
   inside the deadband are invisible to any residual-based detector, encrypted or not. With process and measurement
   noise the nominal residual is nonzero, which is Problem 2 of the paper; the experiments here do not include noise.
 * The statistic saturates once the filtered residual wraps around modulo q: the number of nonzero residuals beyond
-  the first few does not raise it further, which is why the alarm fraction in Fig. 9 grows only over the first few.
+  the first few does not raise it further, which is why the alarm fraction in Fig. 8 grows only over the first few.
 * The noise covariance used by the test is computed exactly from the controller (`encrypted.noise_map`).
 * The detector times are from one Python process on one core; they show the order of magnitude.
-* The Fig. 8 example of the paper used the authors' research code, which depends on g6k; `fig8/` ships the saved
+* The Fig. 7 example of the paper used the authors' research code, which depends on g6k; `fig7/` ships the saved
   detector output and the plotting script only.
 
 ## License

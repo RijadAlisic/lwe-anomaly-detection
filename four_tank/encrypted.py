@@ -4,7 +4,7 @@ Sensor encrypts yq, the controller works on ciphertexts only (homomorphic intege
 decrypts the input.  The key is refreshed every T steps (a multiple of the reset period kp).  Attacks act on the
 ciphertexts, with the same integer conventions as quantized.run: the sensor attack adds r*a to the measurement
 ciphertext (a is added to yq), the actuator attack adds r*a to the input ciphertext (a is added to U).  We also log the 'encrypted values' (second component b of each ciphertext, centered
-mod q) next to the plaintext, as in Fig. 8 of the paper.
+mod q) next to the plaintext, as in Fig. 7 of the paper.
 """
 import time
 import numpy as np

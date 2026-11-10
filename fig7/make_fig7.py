@@ -1,7 +1,7 @@
 """Regenerates the numerical-results figure of 'Anomaly Detection with LWE Encrypted Control'
 from the saved run, stored compactly in windowed_det_data.npz (plant output, encrypted and decrypted
 residual, one-vector and six-vector test statistics per key epoch).
-usage: python make_fig8.py [width_in height_in out.pdf]"""
+usage: python make_fig7.py [width_in height_in out.pdf]"""
 import sys
 import numpy as np
 import matplotlib
