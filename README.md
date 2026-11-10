@@ -1,8 +1,8 @@
-# Anomaly detection with LWE-encrypted control
+# Anomaly Detection with LWE Encrypted Control
 
 Code for the paper *Anomaly Detection with LWE Encrypted Control* (Alisic, Kim, Sandberg).
 
-## 1. A practical deployment: the four-tank process
+## 1. A practical deployment example: the four-tank process
 
 The level of tank 2 is measured and encrypted at the plant. A **controller computer** works on the ciphertexts and sends an encrypted
 command back to pump 1, where it is decrypted. A **detector computer**, which never sees the key, reads the same ciphertexts and the

@@ -13,7 +13,7 @@ from matplotlib.patches import Rectangle, Circle, Polygon, FancyBboxPatch, Wedge
 TW, TH = 97, 190                                    # tank width and height [px]; the drawn tank is 30 cm high
 PXCM = TH / 30.0
 TANKS = {3: (215, 113), 4: (407, 113), 1: (215, 398), 2: (407, 398)}      # top-left corner of each tank
-GRAY, BLUE, ORANGE, RED, GREEN, YEL = "#bdbdbd", "#0072b2", "#e69f00", "#d55e00", "#009e73", "#f0e442"
+WATER, BLUE, ORANGE, RED, GREEN, YEL = "#8ec3e8", "#0072b2", "#e69f00", "#d55e00", "#009e73", "#f0e442"
 INK = "#111111"
 
 
@@ -37,7 +37,7 @@ class Scene:
         ax = self.ax
         self.water, self.level_txt = {}, {}
         for i, (x, y) in TANKS.items():
-            self.water[i] = Rectangle((x, y + TH), TW, 0, facecolor=GRAY, edgecolor="none", zorder=1); ax.add_patch(self.water[i])
+            self.water[i] = Rectangle((x, y + TH), TW, 0, facecolor=WATER, edgecolor="none", zorder=1); ax.add_patch(self.water[i])
             self._line([x, x, x + TW / 2 - 5], [y, y + TH, y + TH], lw=2.6, z=3)                  # walls and bottom with the outlet gap
             self._line([x + TW / 2 + 5, x + TW, x + TW], [y + TH, y + TH, y], lw=2.6, z=3)
             self._line([x + TW / 2 - 5] * 2, [y + TH, y + TH + 12], lw=1.6); self._line([x + TW / 2 + 5] * 2, [y + TH, y + TH + 12], lw=1.6)
@@ -54,7 +54,7 @@ class Scene:
 
     def _reservoir(self):
         ax = self.ax
-        ax.add_patch(Rectangle((122, 658), 474, 46, facecolor=GRAY, edgecolor="none", zorder=1))
+        ax.add_patch(Rectangle((122, 658), 474, 46, facecolor=WATER, edgecolor="none", zorder=1))
         self._line([120, 120, 598, 598], [635, 706, 706, 635], lw=2.6, z=3)
 
     def _pumps_and_pipes(self):
