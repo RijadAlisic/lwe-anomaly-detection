@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, PillowWriter
 import experiment as ex
 import replay
+from scene import Scene
 
 TITLES = {"linear": "Linear plant of the paper", "fourtank": "Nonlinear four-tank process"}
 MODE_LABEL = {"nominal": "nominal control (floating point)", "quantized": "quantized control (integer controller)",
@@ -34,128 +35,44 @@ def shared_limits(plant):
     return lim
 
 
-TANK_H = 30.0                                            # drawn tank height [cm]
-TANK_POS = {3: (0.30, 40.0), 4: (2.90, 40.0), 1: (0.30, 0.0), 2: (2.90, 0.0)}      # lower-left corner of each tank
-TANK_W = 1.40
+TAU = 0.05                                          # per-sample alarm threshold on the residual [output units]; the quantization step is 0.2
 
 
-def build_tanks(ax, L):
-    """Four-tank illustration (tanks 3 and 4 above 1 and 2, as in the lab): the water level of each tank, its
-    equilibrium level (dashed) and the pump voltage.  Returns update(n) that draws sample n and the artists it changes."""
-    ax.set_xlim(0, 4.6); ax.set_ylim(-12, 80); ax.axis("off")
-    h0, u0 = L["h0"], float(L["u0"][0])
-    Ts = L["Ts"]; sw, aw = L["sensor_window"], L["actuator_window"]
-    water, texts, frames_ = {}, {}, {}
-    for i, (x, y) in TANK_POS.items():
-        water[i] = plt.Rectangle((x, y), TANK_W, 0.0, facecolor="#6fb4e8", edgecolor="none", zorder=1)
-        ax.add_patch(water[i])
-        frames_[i] = plt.Rectangle((x, y), TANK_W, TANK_H, facecolor="none", edgecolor="#333333", lw=1.6, zorder=3)
-        ax.add_patch(frames_[i])
-        ax.plot([x - 0.06, x + TANK_W + 0.06], [y + h0[i - 1]] * 2, color="#333333", lw=0.8, ls=(0, (3, 2)), zorder=4)
-        ax.text(x + TANK_W / 2, y + TANK_H + 1.6, f"tank {i}" + (" (h2 measured)" if i == 2 else ""), ha="center", va="bottom", fontsize=8, color="#333333")
-        texts[i] = ax.text(x + TANK_W / 2, y + 2.0, "", ha="center", va="bottom", fontsize=8, color="#0b3d63", zorder=5)
-    for xs in (0.3 + TANK_W / 2, 2.9 + TANK_W / 2):                     # drain of tank 3 into 1 and of tank 4 into 2
-        ax.annotate("", xy=(xs, TANK_H + 0.3), xytext=(xs, 40.0), arrowprops=dict(arrowstyle="-|>", color="#555555", lw=1.0))
-    pump = ax.text(1.0, -5.0, "", ha="center", va="center", fontsize=8,
-                   bbox=dict(boxstyle="round,pad=0.35", facecolor="white", edgecolor="#333333", lw=1.2))
-    ax.text(1.0, -9.8, "pump 1: tanks 1, 4", ha="center", va="center", fontsize=6.5, color="#555555")
-    ax.text(3.6, -5.0, "pump 2: const.", ha="center", va="center", fontsize=7, color="#555555")
-    ax.text(3.6, -9.8, "tanks 2, 3", ha="center", va="center", fontsize=6.5, color="#555555")
-    note = ax.text(2.3, 77.5, "dashed line: equilibrium level", ha="center", va="center", fontsize=6.5, color="#555555")
-    stat = ax.text(0.02, 0.5, "", transform=ax.transAxes)                # placeholder, keeps the artist list uniform
-
-    def update(n):
-        k = n - 1
-        for i in water:
-            water[i].set_height(float(L["h"][k][i - 1]))
-            texts[i].set_text(f"{L['h'][k][i - 1]:.1f} cm")
-        pump.set_text(f"{u0 + L['u'][k]:.2f} V")
-        sensor_on = sw[0] <= k < sw[1] + 1; act_on = aw[0] <= k < aw[1] + 1
-        frames_[2].set_edgecolor("#e69f00" if sensor_on else "#333333"); frames_[2].set_linewidth(3.0 if sensor_on else 1.6)
-        pump.get_bbox_patch().set_edgecolor("#d55e00" if act_on else "#333333")
-        pump.get_bbox_patch().set_linewidth(3.0 if act_on else 1.2)
-        note.set_text("sensor attack on h2" if sensor_on else "actuator attack on u1" if act_on else "dashed line: equilibrium level")
-        note.set_color("#a06a00" if sensor_on else "#a03a00" if act_on else "#555555")
-        return list(water.values()) + list(texts.values()) + list(frames_.values()) + [pump, note, stat]
-    return update
-
-
-def build_diagram(ax, L, mode):
-    """How the plant connects to the computer: the plant side holds the key (Enc at the sensor, Dec at the actuator), the
-    computer runs the controller on ciphertexts and, in the last stage, the key-less detector.  Returns update(n, lamp)."""
-    from matplotlib.patches import FancyBboxPatch, Circle
-    ax.set_xlim(-0.06, 4.66); ax.set_ylim(0, 2.45); ax.axis("off")
-    enc = mode in ("encrypted", "detected"); det = mode == "detected"
-    Ts = L["Ts"]; sw, aw = L["sensor_window"], L["actuator_window"]
-
-    def box(x0, y0, w, h, fc, ec, lw=1.2, ls="-"):
-        ax.add_patch(FancyBboxPatch((x0, y0), w, h, boxstyle="round,pad=0.02,rounding_size=0.08", fc=fc, ec=ec, lw=lw, ls=ls))
-    box(0.02, 0.08, 1.56, 2.3, "#eef5fb", "#333333")
-    ax.text(0.80, 2.30, "plant side", ha="center", va="top", fontsize=7.5, weight="bold")
-    ax.text(0.80, 1.78, "four tanks\nsensor h2\nactuator u1", ha="center", va="top", fontsize=7, color="#333333")
-    ax.text(0.80, 0.62, "secret key s\nEnc / Dec" if enc else "no encryption", ha="center", va="center", fontsize=7,
-            color="#0b3d63" if enc else "#777777", weight="bold" if enc else "normal")
-    box(2.26, 0.08, 2.32, 2.3, "#f6f6f6", "#333333")
-    ax.text(3.42, 2.30, "computer (untrusted)" if enc else "computer", ha="center", va="top", fontsize=7.5, weight="bold")
-    ctrl = {"nominal": "controller\n(floating point)", "quantized": "integer\ncontroller"}.get(mode, "controller on\nciphertexts")
-    box(2.38, 1.12, 2.08, 0.84, "white", "#333333")
-    ax.text(3.42, 1.54, ctrl, ha="center", va="center", fontsize=7)
-    box(2.38, 0.18, 2.08, 0.78, "white" if det else "#f6f6f6", "#333333" if det else "#aaaaaa", ls="-" if det else (0, (3, 2)))
-    ax.text(3.18, 0.57, "anomaly detector\n(no key)" if det else "detector\n(stage 4)", ha="center", va="center", fontsize=7,
-            color="#000000" if det else "#999999")
-    lamp = Circle((4.22, 0.57), 0.13, fc="#c8c8c8", ec="#555555", lw=1.0, visible=det); ax.add_patch(lamp)
-    arr = dict(arrowstyle="-|>", color="#333333", lw=1.6, mutation_scale=9)
-    ay = ax.annotate("", xy=(2.26, 1.66), xytext=(1.58, 1.66), arrowprops=arr)      # measurement to the computer
-    au = ax.annotate("", xy=(1.58, 1.30), xytext=(2.26, 1.30), arrowprops=arr)      # control signal back to the plant
-    ytxt = ax.text(1.92, 1.74, r"$y^e$" if enc else r"$y$", ha="center", va="bottom", fontsize=7.5, linespacing=0.95)
-    utxt = ax.text(1.92, 1.22, r"$u^e$" if enc else r"$u$", ha="center", va="top", fontsize=7.5, linespacing=0.95)
-    if det:                                                      # the detector gets the controller's prediction and reads the measurement
-        ax.annotate("", xy=(3.42, 0.97), xytext=(3.42, 1.12), arrowprops=dict(arrowstyle="-|>", color="#333333", lw=1.2, mutation_scale=7))
-        ax.text(3.50, 1.045, r"$\hat y^e$", ha="left", va="center", fontsize=6.5, color="#555555")
-
-    def update(n, lamp_color=None):
-        k = n - 1
-        s_on = sw[0] <= k < sw[1] + 1; a_on = aw[0] <= k < aw[1] + 1
-        ay.arrow_patch.set_color("#e69f00" if s_on else "#333333"); ay.arrow_patch.set_linewidth(3.2 if s_on else 1.6)
-        au.arrow_patch.set_color("#d55e00" if a_on else "#333333"); au.arrow_patch.set_linewidth(3.2 if a_on else 1.6)
-        base_y, base_u = (r"$y^e$", r"$u^e$") if enc else (r"$y$", r"$u$")
-        ytxt.set_text(base_y + "\nattacked" if s_on else base_y); utxt.set_text(base_u + "\nattacked" if a_on else base_u)
-        ytxt.set_color("#a06a00" if s_on else "#000000"); utxt.set_color("#a03a00" if a_on else "#000000")
-        if lamp_color:
-            lamp.set_facecolor(lamp_color)
-        return [ay, au, ytxt, utxt, lamp]
-    return update
+def alarm_bins(rho, n_bins=1200):
+    """Per-sample alarm |rho_k| > TAU, reduced to n_bins bins (a bin alarms if any of its samples does) for the strip."""
+    al = np.abs(np.asarray(rho)) > TAU
+    edges = np.linspace(0, len(al), n_bins + 1).astype(int)
+    return np.array([al[edges[i]:max(edges[i + 1], edges[i] + 1)].any() for i in range(n_bins)]), al
 
 
 def make_gif(plant, mode, number, lim, frames, outdir, seconds=10.0, workers=1, time_scale=1.0,
              lwe="compact", det_tag="compact", drop=False, name=None, catchup=False):
+    from matplotlib.colors import ListedColormap
     L = ex.run(plant, mode, lwe=lwe, det_tag=det_tag)
     t, Ts = L["t"], L["Ts"]
     detected = mode == "detected"
-    tanks = plant == "fourtank" and "h" in L             # the four-tank gifs get a tank illustration on the left
-    if tanks:
-        fig = plt.figure(figsize=(10.4, 7.4 if detected else 6.6))
-        nrow = 4 if detected else 3
-        gs = fig.add_gridspec(nrow, 2, width_ratios=[1.25, 2.4], height_ratios=[3, 3, 3, 1.1][:nrow], wspace=0.40)
-        axes = [fig.add_subplot(gs[0, 1])]
-        axes += [fig.add_subplot(gs[i, 1], sharex=axes[0]) for i in range(1, nrow)]
-        for a in axes[:-1]:
-            a.tick_params(labelbottom=False)
-        left = gs[:, 0].subgridspec(2, 1, height_ratios=[3.5, 1.5], hspace=0.03)
-        tank_update = build_tanks(fig.add_subplot(left[0]), L)
-        diag_update = build_diagram(fig.add_subplot(left[1]), L, mode)
-        sax, axes = (axes[3], axes[:3]) if detected else (None, axes)
-    elif detected:                                       # a fourth row for the detection flags
-        fig, axes = plt.subplots(4, 1, figsize=(6.4, 6.4), sharex=True, gridspec_kw=dict(height_ratios=[3, 3, 3, 1.1]))
-        sax, axes = axes[3], axes[:3]
+    scene_on = plant == "fourtank" and "h" in L          # the four-tank gifs show the deployment scene on the left
+    n_det = workers if (detected and scene_on) else 1
+    if scene_on:
+        fig = plt.figure(figsize=(11.8, 7.9))
+        gs = fig.add_gridspec(4, 2, width_ratios=[0.9, 1.6], height_ratios=[3, 3, 3, 1.15], wspace=0.04)
+        axes = [fig.add_subplot(gs[0, 1])] + [fig.add_subplot(gs[i, 1], sharex=None) for i in range(1, 4)]
+        scene = Scene(fig.add_subplot(gs[:, 0]), L, mode, n_det=n_det)
     else:
-        fig, axes = plt.subplots(3, 1, figsize=(6.4, 5.4), sharex=True)
+        fig, axes = plt.subplots(4, 1, figsize=(6.4, 6.4), sharex=True, gridspec_kw=dict(height_ratios=[3, 3, 3, 1.15]))
+        scene = None
+    sax, axes = axes[3], axes[:3]
+    for a in axes:
+        a.set_xlim(t[0], t[-1] + Ts)
+    sax.set_xlim(t[0], t[-1] + Ts)
+    for a in axes:
+        a.tick_params(labelbottom=False)
     lines, enc_lines = [], []
     encrypted = "enc_y" in L
     for ax, (key, lab), unit in zip(axes, ROWS, UNITS[plant]):
         ax.axvspan(L["sensor_window"][0] * Ts, L["sensor_window"][1] * Ts, color="#e69f00", alpha=0.15, lw=0)
         ax.axvspan(L["actuator_window"][0] * Ts, L["actuator_window"][1] * Ts, color="#d55e00", alpha=0.15, lw=0)
-        ax.set_xlim(t[0], t[-1] + Ts); ax.grid(alpha=0.3)
+        ax.grid(alpha=0.3)
         pax = ax
         if encrypted:                                   # encrypted values as a gray background (left), plaintext on top (right)
             half = L["q"] / 2
@@ -175,45 +92,49 @@ def make_gif(plant, mode, number, lim, frames, outdir, seconds=10.0, workers=1, 
                  va="top", fontsize=7, color="#a06a00", transform=tr, zorder=10)
     axes[0].text(0.5 * (L["actuator_window"][0] + L["actuator_window"][1]) * Ts, 0.97, "actuator attack", ha="center",
                  va="top", fontsize=7, color="#a03a00", transform=tr, zorder=10)
-    if detected:
+    sax.set_yticks([]); sax.set_xlabel(TIME[plant])
+    if detected:                                        # our detector: one verdict per window of T samples
         d = L["det"]; Tw = int(d["T"]) * Ts; nw = len(d["window"])
         patches = []
         for w in range(nw):
             patch = plt.Rectangle((w * Tw, 0.12), Tw, 0.76, facecolor="#ececec", edgecolor="white", lw=1.0)
             sax.add_patch(patch); patches.append(patch)
-        sax.set_ylim(0, 1); sax.set_yticks([]); sax.set_ylabel("detection", rotation=0, ha="right", va="center", fontsize=9)
-        sax.set_xlabel(TIME[plant]); sax.tick_params(axis="x", labelbottom=True)
+        sax.set_ylim(0, 1); sax.set_ylabel("detection\n(per window)", rotation=0, ha="right", va="center", fontsize=8)
         sax.text(1.01, 0.72, "alarm", transform=sax.transAxes, color="#d55e00", fontsize=8, va="center")
         sax.text(1.01, 0.28, "no alarm", transform=sax.transAxes, color="#009e73", fontsize=8, va="center")
         sax.text(1.01, 0.5, "computing", transform=sax.transAxes, color="#a08c00", fontsize=8, va="center")
         if drop:
             sax.text(1.01, 0.06, "missed", transform=sax.transAxes, color="#555555", fontsize=8, va="center")
-    else:
-        axes[2].set_xlabel(TIME[plant])
+    else:                                               # the residual test: one verdict per sample
+        bins, alarm = alarm_bins(L["rho"])
+        im = sax.imshow(np.zeros((1, len(bins))), aspect="auto", cmap=ListedColormap(["#ececec", "#d55e00"]), vmin=0, vmax=1,
+                        extent=[t[0], t[-1] + Ts, 0, 1], interpolation="nearest", zorder=1)
+        sax.set_ylim(0, 1); sax.set_ylabel("detection\n(every sample)", rotation=0, ha="right", va="center", fontsize=8)
+        sax.text(1.01, 0.7, "alarm", transform=sax.transAxes, color="#d55e00", fontsize=8, va="center")
+        sax.text(1.01, 0.3, r"$|\rho_k|>%g$" % TAU, transform=sax.transAxes, color="#555555", fontsize=7, va="center")
     if encrypted:                                       # what one sample costs, for this parameter set
         tm = L["timing"]
-        fig.text(0.02 if tanks else 0.13, 0.012, f"LWE n={L['lwe']['v']}, q=2^23+9, sigma={L['lwe']['sigma']:g}, r={L['lwe']['r']} | per sample (Python, 1 core): encrypt {tm['encrypt']:.2f} ms, "
+        fig.text(0.02, 0.012, f"LWE n={L['lwe']['v']}, q=2^23+9, sigma={L['lwe']['sigma']:g}, r={L['lwe']['r']} | per sample (Python, 1 core): encrypt {tm['encrypt']:.2f} ms, "
                  f"control {tm['evaluate']:.2f} ms, decrypt {tm['decrypt']:.2f} ms", fontsize=6, color="#555555")
     if detected:
-        fig.text(0.02 if tanks else 0.13, 0.038, f"detection per window of {int(d['T'])} samples ({str(d['method']) if 'method' in d else 'kernel lattice + LLL'}, Python, 1 core): "
+        fig.text(0.02, 0.036, f"detection per window of {int(d['T'])} samples ({str(d['method']) if 'method' in d else 'kernel lattice + LLL'}, Python, 1 core): "
                  f"{np.mean(d['seconds']):.0f} s on average, {int(d['K'])}-vector chi-square test at alpha = {float(d['alpha']):g}; "
-                 f"plant and {workers} detector worker(s) in parallel, newest window first",
-                 fontsize=6, color="#555555")
-    if detected and tanks and (time_scale != 1 or drop):
+                 f"{workers} detector computer(s), newest window first", fontsize=6, color="#555555")
         note = []
         if time_scale != 1:
             note.append(f"detector time x{time_scale:g} (slower machine)")
         if drop:
             note.append("skipped windows are checked after the run" if catchup else "windows it cannot start in time are missed")
-        fig.text(0.02, 0.064, "; ".join(note), fontsize=6, color="#a03a00")
-    if tanks:
-        fig.subplots_adjust(left=0.01, right=0.90, top=0.93, bottom=0.17 if detected else 0.13, hspace=0.12)
+        if note:
+            fig.text(0.02, 0.060, "; ".join(note), fontsize=6, color="#a03a00")
+    if scene_on:
+        fig.subplots_adjust(left=0.01, right=0.925, top=0.95, bottom=0.115, hspace=0.12)
     else:
-        fig.subplots_adjust(left=0.13, right=0.86, top=0.93, bottom=0.17 if detected else 0.13, hspace=0.12)
+        fig.subplots_adjust(left=0.13, right=0.86, top=0.93, bottom=0.17, hspace=0.12)
     idx = np.unique(np.linspace(1, len(t), frames).astype(int))
     if detected:
         # one common simulation clock: the plant runs at the sample rate, window w is available when its last
-        # sample has arrived, the detector workers start and finish at the times given by replay.schedule
+        # sample has arrived, the detector computers start and finish at the times given by replay.schedule
         Tn = int(d["T"]); t_run = len(t) * Ts
         sch = replay.schedule((np.arange(nw) + 1) * Tn * Ts, d["seconds"], t_run, workers, time_scale, drop=drop, catchup=catchup)
         dt = t_run / len(idx)
@@ -223,7 +144,7 @@ def make_gif(plant, mode, number, lim, frames, outdir, seconds=10.0, workers=1, 
         seq = [int(i) for i in idx]
 
     def draw(f):
-        lamp = None
+        lamps = None
         if detected:
             n = max(1, min(len(t), int(f / Ts)))
             for w in range(nw):
@@ -239,25 +160,33 @@ def make_gif(plant, mode, number, lim, frames, outdir, seconds=10.0, workers=1, 
                 else:
                     c = "#ececec"
                 patches[w].set_facecolor(c)
-            done = [w for w in range(nw) if f >= sch["finish"][w]]
-            busy = any(sch["start"][w] <= f < sch["finish"][w] for w in range(nw))
-            if busy:
-                lamp = "#f0e442"
-            elif done:
-                last = max(done, key=lambda w: sch["finish"][w])
-                lamp = "#d55e00" if d["flag_chi"][last] else "#009e73"
-            else:
-                lamp = "#c8c8c8"
+            lamps = []                                  # one lamp per detector computer
+            for k in range(n_det):
+                mine = [w for w in range(nw) if sch["worker"][w] == k]
+                if any(sch["start"][w] <= f < sch["finish"][w] for w in mine):
+                    lamps.append("#f0e442")
+                else:
+                    done = [w for w in mine if f >= sch["finish"][w]]
+                    if done:
+                        last = max(done, key=lambda w: sch["finish"][w])
+                        lamps.append("#d55e00" if d["flag_chi"][last] else "#009e73")
+                    else:
+                        lamps.append("#c8c8c8")
+            extra = []
         else:
             n = f
+            cur = np.zeros(len(bins)); cur[: int(np.ceil(n / len(t) * len(bins)))] = bins[: int(np.ceil(n / len(t) * len(bins)))]
+            im.set_data(cur[None, :])
+            lamps = ["#d55e00" if alarm[max(0, n - 10):n].any() else "#009e73"]
+            extra = [im]
         for ln, dot, key in lines:
             ln.set_data(t[:n], L[key][:n]); dot.set_data([t[n - 1]], [L[key][n - 1]])
         for eln, ek in enc_lines:
             eln.set_data(t[:n], L[ek][:n])
-        extra_artists = (tank_update(n) + diag_update(n, lamp)) if tanks else []
+        extra_artists = (scene.update(n, lamps) if scene_on else []) + extra
         return [x for ln, dot, _ in lines for x in (ln, dot)] + [eln for eln, _ in enc_lines] + extra_artists
 
-    anim = FuncAnimation(fig, draw, frames=seq, blit=not detected)
+    anim = FuncAnimation(fig, draw, frames=seq, blit=False)
     path = os.path.join(outdir, name or f"{plant}_{number}_{mode}.gif")
     anim.save(path, writer=PillowWriter(fps=len(idx) / seconds))
     if detected:
