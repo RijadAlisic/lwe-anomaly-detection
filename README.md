@@ -71,6 +71,11 @@ actuator attack, calm end; 36 key epochs of 192 steps, fixed seed) and the same 
 The four-tank gifs have an illustration of the tanks on the left: the water level of each tank (drawn to scale for a 30 cm
 tank), its equilibrium level (dashed), the pump voltage, and a highlight on tank 2 or pump 1 while the sensor or the
 actuator is attacked. Tanks 1 and 4 move most under the actuator attack, since pump 1 feeds them.
+Below the tanks is a block diagram of how the plant connects to the computer: the plant side holds the secret key (encryption
+at the sensor, decryption at the actuator), the computer runs the controller on the measurement and returns the control
+signal, and in the last stage it also runs the key-less detector, whose lamp shows the verdict of the latest window. The
+measurement and control arrows turn orange and red while the sensor or the actuator is attacked. The diagram follows the stage:
+no encryption in stages 1 and 2, ciphertexts from stage 3, detector from stage 4.
 
 In the encrypted gifs the gray background is the second ciphertext component (centered modulo q), as in Fig. 8 of the
 paper, and the footer gives the time per sample for encryption, homomorphic control and decryption (about 0.12, 0.09 and
