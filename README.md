@@ -15,17 +15,21 @@ actuator signal.
 <p align="center"><img src="four_tank/gifs/fourtank_4_detected.gif" width="860" alt="Four-tank process with controller and detector computers"></p>
 
 In gray one can see the encrypted signal, and the signal in blue is the plaintext signal (if no encryption was applied). The two attack
-windows are colored in yellow and orange. For these (relatively weak) encryption parameters, the detector performs detection roughly in
-real time.
+windows are colored in yellow and orange.
 
-**A detector that falls behind.** With harder encryption parameters (sigma = 400) a window takes about 250 s to reduce (BKZ-60), against
-a window length of 384 s. On a detector computer three times slower, windows arrive faster than they are checked: the detector takes the
-newest one, the skipped windows are hatched, and they are checked after the run ends.
+The encryption parameters here, (v, q, sigma) = (64, 2^23 + 9, 50), are weak: the best known attacks cost about 2^39 operations (a
+textbook estimate, not a security claim). They are weak enough for the detection to succeed with the polynomial-time LLL algorithm,
+and the detector works in roughly real time. However, that also means that an attacker can break the system quickly.
+
+Next we make the noise larger, sigma = 400 (r scaled from 4096 to 16000). LLL is no longer sufficient, and the detector has to rely on
+BKZ-60. A window now takes about 250 s to reduce, against a window length of 384 s. On a detector computer three times slower than ours
+(stated on the gif), the detector falls behind: it always takes the most recent window, so it misses some windows and the detection
+becomes patchy. The gaps are filled in afterwards, but any attack found then happened a long time ago.
 
 <p align="center"><img src="four_tank/gifs/fourtank_5_overloaded.gif" width="860" alt="One slow detector computer misses windows"></p>
 
-**A second detector computer.** Windows are independent, so a second computer takes windows in parallel. Each still needs its time per
-window, but nothing is missed.
+However, the detection can be parallelized. The windows are independent, so a second detector computer takes windows in parallel. Each
+computer still needs its time per window, but no window is missed.
 
 <p align="center"><img src="four_tank/gifs/fourtank_6_two_detectors.gif" width="860" alt="Two detector computers"></p>
 
