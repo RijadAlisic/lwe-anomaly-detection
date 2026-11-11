@@ -66,8 +66,8 @@ having the key.
 
 ## 3. The figures of the numerical section
 
-| Paper | Command (from the repository root) |
+| Paper | Code |
 |---|---|
-| Table I | `python analysis/type2_table.py` |
-| Fig. 7 | `cd fig7 && python make_fig7.py 3.5 3.5 out.pdf` |
-| Fig. 8 | `cd four_tank && python compare_fig_columns.py` |
+| Table I | `analysis/type2_table.py` |
+| Fig. 7 | `fig7/make_fig7.py`, from the saved detector output `fig7/windowed_det_data.npz` |
+| Fig. 8 | `four_tank/compare_fig_columns.py`, from the saved sweeps in `four_tank/det_results/`; the sweeps are made by `four_tank/compare_detectors.py` and `four_tank/zero_sweep_fine.py` |
