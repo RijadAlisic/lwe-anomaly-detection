@@ -74,13 +74,15 @@ for kind, col in (("stable", "#0072b2"), ("unstable", "#009e73")):
     ns = sorted(n for n in d if n <= XMAX)
     ax[0].plot(ns, [np.median(d[n]) for n in ns], color=col, ls="--", lw=1.2)
     ax[1].plot(ns, [np.mean(np.array(d[n]) > thr) for n in ns], color=col, ls="--", lw=1.2)
-ax[0].axhline(thr, color="k", ls="--", lw=0.8, label=r"Threshold $22.5$")
+ax[0].axhline(thr, color="k", ls=":", lw=1.0, label=r"Threshold $22.5$")
 ax[0].set_yscale("log"); ax[0].set_ylabel(r"Statistic $Z$")
 ax[1].plot([0, 0.5], [0, 0], color="k", lw=0.9); ax[1].plot([0.5, 0.5], [0, 1], color="k", lw=0.9)
 ax[1].plot([0.5, XMAX + 5], [1, 1], color="k", lw=0.9, label="Plaintext test")
 ax[1].set_ylim(-0.08, 1.12); ax[1].set_yticks([0, 0.5, 1]); ax[1].set_ylabel("Alarm Fraction", fontsize=7, labelpad=1)
 h0, l0 = ax[0].get_legend_handles_labels(); h1, l1 = ax[1].get_legend_handles_labels()
-ax[1].legend(h0 + h1, l0 + l1, loc="lower right", ncol=2, framealpha=0.9, borderpad=0.2, labelspacing=0.1, columnspacing=0.8,
+from matplotlib.lines import Line2D
+extra = [Line2D([0], [0], color="#555555", lw=1.0, label=r"$\sigma=50$"), Line2D([0], [0], color="#555555", lw=1.2, ls="--", label=r"$\sigma=75$ (more noise)")]
+ax[1].legend(h0 + h1 + extra, l0 + l1 + [e.get_label() for e in extra], loc="lower right", ncol=2, framealpha=0.9, borderpad=0.2, labelspacing=0.1, columnspacing=0.8,
              handlelength=1.3, edgecolor="none")
 ax[1].set_xlim(-0.6, XMAX + 0.5); ax[1].set_xticks(np.arange(0, XMAX + 1, 5))
 ax[1].set_xlabel("Number of Samples with $\\rho_k\\neq0$", labelpad=0.5)
