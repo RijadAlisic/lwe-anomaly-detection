@@ -51,11 +51,6 @@ residual and decides at every sample; in the last it works on ciphertexts and de
 <img src="four_tank/gifs/fourtank_3_encrypted.gif" width="430"> <img src="four_tank/gifs/fourtank_4_detected.gif" width="430">
 </p>
 
-```bash
-pip install -r requirements.txt
-cd four_tank && python make_gifs.py --plant fourtank
-```
-
 ## 3. The figures of the numerical section
 
 | Paper | Command (from the repository root) |
