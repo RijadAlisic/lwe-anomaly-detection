@@ -36,20 +36,33 @@ computer still needs its time per window, but no window is missed.
 
 ## 2. The build-up to anomaly detection over LWE
 
-The same attack storyline (calm, sensor attack, calm, actuator attack, calm) in four steps. In the first three the detector works on the
-residual and decides at every sample; in the last it works on ciphertexts and decides per window.
+We build up the story in four steps, with the same attacks as above: random noise in the sensor signal, then random noise in the actuator
+signal.
 
-| Step | Controller | Detector | Gif |
-|---|---|---|---|
-| 1 | floating point | residual test at every sample | `fourtank_1_nominal.gif` |
-| 2 | integer, quantized signals | residual test at every sample | `fourtank_2_quantized.gif` |
-| 3 | the integer controller on LWE ciphertexts | residual test on the decrypted residual, at every sample | `fourtank_3_encrypted.gif` |
-| 4 | the same, on ciphertexts | **no key**: lattice reduction of the residual ciphertexts, chi-square test, per window | `fourtank_4_detected.gif` |
+**Step 1: nominal control.** A floating-point controller, no quantization, no encryption. The detector is a residual test: it raises an
+alarm whenever $|\rho_k| > 0.05$ cm, where $\rho_k = y_k - \hat y_k$ is the difference between the measurement and the prediction. It
+decides at every sample, so the alarms (the red strip below) appear the moment an attack starts.
 
-<p align="center">
-<img src="four_tank/gifs/fourtank_1_nominal.gif" width="430"> <img src="four_tank/gifs/fourtank_2_quantized.gif" width="430"><br>
-<img src="four_tank/gifs/fourtank_3_encrypted.gif" width="430"> <img src="four_tank/gifs/fourtank_4_detected.gif" width="430">
-</p>
+<p align="center"><img src="four_tank/gifs/fourtank_1_nominal.gif" width="860" alt="Step 1: nominal control with a residual test at every sample"></p>
+
+**Step 2: quantized control.** The signals are now integers and the controller is the integer controller, with a state reset every 64
+steps. In calm periods the residual is zero (apart from the start-up), so any nonzero residual is an alarm. The detector still decides at
+every sample.
+
+<p align="center"><img src="four_tank/gifs/fourtank_2_quantized.gif" width="860" alt="Step 2: quantized control with a residual test at every sample"></p>
+
+**Step 3: encrypted control.** The integer controller now runs on LWE ciphertexts (in gray). The plant side holds the key, so it can
+decrypt the residual, and the same residual test works at every sample: encryption does not change the plaintext signals. This is the
+benchmark that any detector on ciphertexts is compared with.
+
+<p align="center"><img src="four_tank/gifs/fourtank_3_encrypted.gif" width="860" alt="Step 3: encrypted control with a residual test on the decrypted residual"></p>
+
+**Step 4: detection without the key.** The detector computer only has the ciphertexts. It builds a lattice from the residual
+ciphertexts of one window, reduces it to find short vectors that cancel the secret, and applies a chi-square test to the result. It
+therefore needs a whole window of 192 samples and gives one verdict per window, after the window has closed. That is the price of not
+having the key.
+
+<p align="center"><img src="four_tank/gifs/fourtank_4_detected.gif" width="860" alt="Step 4: detection on ciphertexts, one verdict per window"></p>
 
 ## 3. The figures of the numerical section
 
