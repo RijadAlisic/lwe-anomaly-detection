@@ -7,10 +7,8 @@ Code for the paper *Anomaly Detection with LWE Encrypted Control* (Alisic, Kim, 
 In this example we consider a feedback controller of a four-tank system, but we restrict ourselves to the SISO system where Pump 1
 controls the level of Tank 2 (Pump 2 is fixed at steady state).
 
-The system is controlled over homomorphically encrypted signals (using the LWE scheme). The controller is a linear output-feedback
-controller with a memory of the last two measurements, u_k = (y_{k-2} - 2 y_{k-1}) up to scaling, with integer gains and a state reset
-every 64 steps. It is neither an LQR nor a pole-placement design: the gains were chosen by hand to stabilize the plant. Its prediction
-of the next output, y^_k = y_{k-1}, is what the detector compares with the measurement.
+The system is controlled over homomorphically encrypted signals (using the LWE scheme). The controller uses
+u_k = y^_{k-1} - 2 y_{k-1} (up to scaling), where the output observer is simply y^_k = y_{k-1}.
 
 We consider a scenario where an attacker (a) injects random noise into the sensor signal, and (b) injects random noise into the
 actuator signal.
