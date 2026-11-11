@@ -8,7 +8,7 @@ In this example we consider a feedback controller of a four-tank system, but we 
 controls the level of Tank 2 (Pump 2 is fixed at steady state).
 
 The system is controlled over homomorphically encrypted signals (using the LWE scheme). The controller uses
-u_k = y^_{k-1} - 2 y_{k-1} (up to scaling), where the output observer is simply y^_k = y_{k-1}.
+$u_k = \hat y_{k-1} - 2y_{k-1}$ (up to scaling), where the output observer is simply $\hat y_k = y_{k-1}$.
 
 We consider a scenario where an attacker (a) injects random noise into the sensor signal, and (b) injects random noise into the
 actuator signal.
@@ -18,11 +18,11 @@ actuator signal.
 In gray one can see the encrypted signal, and the signal in blue is the plaintext signal (if no encryption was applied). The two attack
 windows are colored in yellow and orange.
 
-The encryption parameters here, (v, q, sigma) = (64, 2^23 + 9, 50), are weak: the best known attacks cost about 2^39 operations (a
+The encryption parameters here, $(v, q, \sigma) = (64, 2^{23}+9, 50)$, are weak: the best known attacks cost about 2^39 operations (a
 textbook estimate, not a security claim). They are weak enough for the detection to succeed with the polynomial-time LLL algorithm,
 and the detector works in roughly real time. However, that also means that an attacker can break the system quickly.
 
-Next we make the noise larger, sigma = 400 (r scaled from 4096 to 16000). LLL is no longer sufficient, and the detector has to rely on
+Next we make the noise larger, $\sigma = 400$ ($r$ scaled from 4096 to 16000). LLL is no longer sufficient, and the detector has to rely on
 BKZ-60. A window now takes about 250 s to reduce, against a window length of 384 s. On a detector computer three times slower than ours
 (stated on the gif), the detector falls behind: it always takes the most recent window, so it misses some windows and the detection
 becomes patchy. The gaps are filled in afterwards, but any attack found then happened a long time ago.
