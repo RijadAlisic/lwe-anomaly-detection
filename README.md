@@ -18,7 +18,7 @@ actuator signal.
 In gray one can see the encrypted signal, and the signal in blue is the plaintext signal (if no encryption was applied). The two attack
 windows are colored in yellow and orange.
 
-The encryption parameters here, $(v, q, \sigma) = (64, 2^{23}+9, 50)$, are weak: the best known attacks cost about 2^39 operations (a
+The encryption parameters here, $(v, q, \sigma) = (64, 2^{23}+9, 50)$, are weak: the best known attacks cost about $2^{39}$ operations (a
 textbook estimate, not a security claim). They are weak enough for the detection to succeed with the polynomial-time LLL algorithm,
 and the detector works in roughly real time. However, that also means that an attacker can break the system quickly.
 
